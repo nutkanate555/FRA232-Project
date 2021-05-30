@@ -70,8 +70,6 @@ typedef enum
 
 Robot_STATE Munmunbot_State = STATE_Setting;
 
-
-
 typedef struct _TrajectoryGenerationStructure
 {
 	uint32_t BlendTimeLSPB;
@@ -97,6 +95,7 @@ typedef struct _TrajectoryGenerationStructure
 	uint32_t Loop_Period;
 
 	uint32_t Desire_Theta;
+	uint32_t Start_Theta;
 	uint32_t Delta_Theta;
 	uint32_t Abs_Delta_Theta;
 
@@ -105,8 +104,16 @@ typedef struct _TrajectoryGenerationStructure
 
 } TrajectoryGenerationStructure;
 
-TrajectoryGenerationStructure TrjStruc = {0};
+typedef struct _ConverterUnitSystemStructure
+{
+	uint32_t PPR;
+	uint32_t PPRxQEI;
+	uint32_t RPMp;
 
+} ConverterUnitSystemStructure;
+
+TrajectoryGenerationStructure TrjStruc = {0};
+ConverterUnitSystemStructure CUSSStruc = {0};
 
 /* USER CODE END PV */
 
@@ -122,10 +129,15 @@ static void MX_TIM3_Init(void);
 uint64_t micros();
 float EncoderVelocity_Update();
 
+void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar);
+void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar, ConverterUnitSystemStructure *CUSSvar);
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 /* USER CODE END 0 */
 
@@ -170,6 +182,9 @@ int main(void)
   HAL_TIM_Base_Start(&htim3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
+  ///Init Data
+  ConverterUnitSystemStructureInit(&CUSSStruc);
+  TrajectoryGenerationStructureInit(&TrjStruc, &CUSSStruc);
 
 
 
@@ -189,25 +204,26 @@ int main(void)
 	  		  break;
 	  	  case STATE_Idle:
 
-	  		/// เมื่อโดนสั่งรับ Vmax มา
-	  		  if (Vmax_trigger == 1)
-			  {
-				  ///Set AngularVelomax
-				  TrjStruc.AngularVelocityMax_Setting = VelocityMax;
-				  TrjStruc.BlendTimeLSPB = TrjStruc.AngularVelocityMax_Setting/(TrjStruc.AngularAccerationMax_Setting);
-				  ///find Minimum LSPB Angular Distance
-				  TrjStruc.Theta_min_for_LSPB = TrjStruc.AngularVelocityMax_Setting*TrjStruc.BlendTimeLSPB;
-			  }
+	  		/// Get Vmax input
+//	  		  if (Vmax_trigger == 1)
+//			  {
+//				  ///Set AngularVelomax
+//				  TrjStruc.AngularVelocityMax_Setting = VelocityMax;
+//				  TrjStruc.BlendTimeLSPB = TrjStruc.AngularVelocityMax_Setting/(TrjStruc.AngularAccerationMax_Setting);
+//				  ///find Minimum LSPB Angular Distance
+//				  TrjStruc.Theta_min_for_LSPB = TrjStruc.AngularVelocityMax_Setting*TrjStruc.BlendTimeLSPB;
+//			  }
 
-	  		 /// เมื่อ ได้รับ input
-	  		  if (input[0] != 0)
-	  		  {
-	  			  TrjStruc.Desire_Theta = input[0];
-	  			  /// เลื่อน Array
-	  			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - Positionnow; //// No implement
-	  			  Munmunbot_State = STATE_Calculation;
-	  		  }
-		  	  break;
+	  		 /// Get the input
+//	  		  if (input[0] != 0)
+//	  		  {
+//	  			  TrjStruc.Start_Theta = htim1.Instance->CNT;
+//	  			  TrjStruc.Desire_Theta = input[0];
+//	  			  /// เลื�?อ�? Array
+//	  			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+//	  			  Munmunbot_State = STATE_Calculation;
+//	  		  }
+//		  	  break;
 
 	  	  case STATE_Calculation:
 	  		  if (TrjStruc.Delta_Theta < 0)
@@ -225,7 +241,7 @@ int main(void)
 	  		  if (TrjStruc.Abs_Delta_Theta < TrjStruc.Theta_min_for_LSPB)
 	  		  {
 	  			 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
-	  			 TrjStruc.Theta_Stamp_0 = Positionnow;
+	  			 TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
 				 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular)^2)/2.0) + TrjStruc.Theta_Stamp_0;
 				 TrjStruc.Mode = 1;
 				 TrjStruc.Submode = 0;
@@ -234,7 +250,7 @@ int main(void)
 	  		  else if (TrjStruc.Abs_Delta_Theta >= TrjStruc.Theta_min_for_LSPB)
 	  		  {
 	  			  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
-	  			  TrjStruc.Theta_Stamp_0 = Positionnow;
+	  			  TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
 	  			  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.Theta_min_for_LSPB)^2)/2.0) + TrjStruc.Theta_Stamp_0;
 	  			  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
 	  			  TrjStruc.Mode = 0;
@@ -258,7 +274,7 @@ int main(void)
 							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
 							  {
 								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Submode = 1;
+								  TrjStruc.Mode = 2;
 							  }
 						  }
 						  else if (TrjStruc.Submode == 1)
@@ -270,7 +286,7 @@ int main(void)
 							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
 							  {
 								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Submode = 3; ///unkownmode
+								  TrjStruc.Mode = 2; ///unkownmode
 							  }
 						  }
 						  break;
@@ -283,7 +299,7 @@ int main(void)
 							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
 							  {
 								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Submode = 1;
+								  TrjStruc.Mode = 2;
 							  }
 						  }
 						  else if (TrjStruc.Submode == 1)
@@ -293,7 +309,7 @@ int main(void)
 							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB)
 							  {
 								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Submode = 2;
+								  TrjStruc.Mode = 2;
 							  }
 						  }
 						  else if (TrjStruc.Submode == 2)
@@ -305,9 +321,12 @@ int main(void)
 							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
 							  {
 								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Submode = 3; ///unkownmode
+								  TrjStruc.Mode = 2; ///unkownmode
 							  }
 						  }
+						  break;
+					  case 2:
+						  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
 						  break;
 	   			  }
 	   		  }
@@ -397,7 +416,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 3071;
+  htim1.Init.Period = 8191;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -603,8 +622,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 #define  HTIM_ENCODER htim1
-#define  MAX_SUBPOSITION_OVERFLOW 1536
-#define  MAX_ENCODER_PERIOD 3072
+#define  MAX_SUBPOSITION_OVERFLOW 4096
+#define  MAX_ENCODER_PERIOD 8192
 
 float EncoderVelocity_Update()
 {
@@ -655,8 +674,21 @@ uint64_t micros()
 	return _micros + htim2.Instance->CNT;
 }
 
+void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
+{
+	CUSSvar->PPR = 2048;
+	CUSSvar->PPRxQEI = CUSSvar->PPR * 4;
+	CUSSvar->RPMp = 255;
+}
 
-
+void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
+{
+	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;
+	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp)*10)/(255.0*60.0);
+	TGSvar->Start_Theta = 0;
+	TGSvar->Mode = 0;
+	TGSvar->Submode = 0;
+}
 
 
 

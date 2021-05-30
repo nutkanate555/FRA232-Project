@@ -1,0 +1,13 @@
+main.c:148:5:main	168	static
+main.c:358:6:SystemClock_Config	88	static
+main.c:403:13:MX_TIM1_Init	56	static
+main.c:453:13:MX_TIM2_Init	32	static
+main.c:498:13:MX_TIM3_Init	64	static
+main.c:561:13:MX_USART2_UART_Init	8	static
+main.c:594:13:MX_GPIO_Init	48	static
+main.c:628:7:EncoderVelocity_Update	48	static
+main.c:664:6:HAL_TIM_PeriodElapsedCallback	24	static
+main.c:672:10:micros	12	static
+main.c:677:6:ConverterUnitSystemStructureInit	16	static
+main.c:684:6:TrajectoryGenerationStructureInit	16	static
+main.c:705:6:Error_Handler	4	static,ignoring_inline_asm
