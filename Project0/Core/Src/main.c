@@ -131,7 +131,8 @@ float EncoderVelocity_Update();
 
 void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar);
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar, ConverterUnitSystemStructure *CUSSvar);
-
+void TrajectoryGenerationCalculation();
+void TrajectoryGenerationProcess();
 
 /* USER CODE END PFP */
 
@@ -226,110 +227,17 @@ int main(void)
 //		  	  break;
 
 	  	  case STATE_Calculation:
-	  		  if (TrjStruc.Delta_Theta < 0)
-			  {
-	  			 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting * -1;
-	  			 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting *-1;
-				 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta * -1;
-			  }
-			  else if (TrjStruc.Delta_Theta > 0)
-			  {
-				 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting;
-				 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting;
-				 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta;
-			  }
-	  		  if (TrjStruc.Abs_Delta_Theta < TrjStruc.Theta_min_for_LSPB)
-	  		  {
-	  			 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
-	  			 TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-				 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular)^2)/2.0) + TrjStruc.Theta_Stamp_0;
-				 TrjStruc.Mode = 1;
-				 TrjStruc.Submode = 0;
-	  		  }
-
-	  		  else if (TrjStruc.Abs_Delta_Theta >= TrjStruc.Theta_min_for_LSPB)
-	  		  {
-	  			  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
-	  			  TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-	  			  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.Theta_min_for_LSPB)^2)/2.0) + TrjStruc.Theta_Stamp_0;
-	  			  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
-	  			  TrjStruc.Mode = 0;
-	  			  TrjStruc.Submode = 0;
-	  		  }
-	  		 Munmunbot_State = STATE_Link_Moving;
-	  		 TrjStruc.Equation_Timestamp = micros();
-	  		 TrjStruc.Loop_Timestamp = micros();
+	  		  TrajectoryGenerationCalculation();
+	  		  Munmunbot_State = STATE_Link_Moving;
 	  		  break;
 
 	   	  case STATE_Link_Moving:
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
-	   			  switch (TrjStruc.Mode)
-	   			  {
-					  case 0: ///LSPB
-						  if (TrjStruc.Submode == 0)
-						  {
-							  TrjStruc.AngularDisplacementDesire =
-									  ((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
-							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
-							  {
-								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Mode = 2;
-							  }
-						  }
-						  else if (TrjStruc.Submode == 1)
-						  {
-							  TrjStruc.AngularDisplacementDesire =
-									  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
-									  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(micros()-TrjStruc.Equation_Timestamp))
-									  + TrjStruc.Theta_Stamp_1;
-							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
-							  {
-								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Mode = 2; ///unkownmode
-							  }
-						  }
-						  break;
+	   			  TrajectoryGenerationProcess();
 
-					  case 1: ///Triangular
-						  if (TrjStruc.Submode == 0)
-						  {
-							  TrjStruc.AngularDisplacementDesire =
-										((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
-							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
-							  {
-								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Mode = 2;
-							  }
-						  }
-						  else if (TrjStruc.Submode == 1)
-						  {
-							  TrjStruc.AngularDisplacementDesire =
-									  (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))+TrjStruc.Theta_Stamp_1;
-							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB)
-							  {
-								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Mode = 2;
-							  }
-						  }
-						  else if (TrjStruc.Submode == 2)
-						  {
-							  TrjStruc.AngularDisplacementDesire =
-									  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
-									  + (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))
-									  + TrjStruc.Theta_Stamp_2;
-							  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
-							  {
-								  TrjStruc.Equation_Timestamp = micros();
-								  TrjStruc.Mode = 2; ///unkownmode
-							  }
-						  }
-						  break;
-					  case 2:
-						  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
-						  break;
-	   			  }
 	   		  }
+
 
 
 
@@ -691,6 +599,112 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 }
 
 
+void TrajectoryGenerationCalculation()
+{
+	if (TrjStruc.Delta_Theta < 0)
+	  {
+		 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting * -1;
+		 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting *-1;
+		 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta * -1;
+	  }
+	  else if (TrjStruc.Delta_Theta > 0)
+	  {
+		 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting;
+		 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting;
+		 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta;
+	  }
+	  if (TrjStruc.Abs_Delta_Theta < TrjStruc.Theta_min_for_LSPB)   ///Triangular mode0
+	  {
+		 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
+		 TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
+		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular)^2)/2.0) + TrjStruc.Theta_Stamp_0;
+		 TrjStruc.Mode = 0;
+		 TrjStruc.Submode = 0;
+	  }
+
+	  else if (TrjStruc.Abs_Delta_Theta >= TrjStruc.Theta_min_for_LSPB)  ///LSPB mode1
+	  {
+		  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
+		  TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
+		  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.Theta_min_for_LSPB)^2)/2.0) + TrjStruc.Theta_Stamp_0;
+		  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
+		  TrjStruc.Mode = 1;
+		  TrjStruc.Submode = 0;
+	  }
+	 TrjStruc.Equation_Timestamp = micros();
+	 TrjStruc.Loop_Timestamp = micros();
+}
+
+void TrajectoryGenerationProcess()
+{
+	 switch (TrjStruc.Mode)
+	  {
+		  case 0: ///Triangular
+			  if (TrjStruc.Submode == 0)
+			  {
+				  TrjStruc.AngularDisplacementDesire =
+						  ((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
+				  {
+					  TrjStruc.Equation_Timestamp = micros();
+					  TrjStruc.Submode = 1;
+				  }
+			  }
+			  else if (TrjStruc.Submode == 1)
+			  {
+				  TrjStruc.AngularDisplacementDesire =
+						  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
+						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(micros()-TrjStruc.Equation_Timestamp))
+						  + TrjStruc.Theta_Stamp_1;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
+				  {
+					  TrjStruc.Equation_Timestamp = micros();
+					  TrjStruc.Submode = 0;
+					  TrjStruc.Mode = 2; ///Final Value Mode
+				  }
+			  }
+			  break;
+
+		  case 1: ///LSPB
+			  if (TrjStruc.Submode == 0)
+			  {
+				  TrjStruc.AngularDisplacementDesire =
+							((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
+				  {
+					  TrjStruc.Equation_Timestamp = micros();
+					  TrjStruc.Submode = 1;
+				  }
+			  }
+			  else if (TrjStruc.Submode == 1)
+			  {
+				  TrjStruc.AngularDisplacementDesire =
+						  (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))+TrjStruc.Theta_Stamp_1;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB)
+				  {
+					  TrjStruc.Equation_Timestamp = micros();
+					  TrjStruc.Submode = 2;
+				  }
+			  }
+			  else if (TrjStruc.Submode == 2)
+			  {
+				  TrjStruc.AngularDisplacementDesire =
+						  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
+						  + (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))
+						  + TrjStruc.Theta_Stamp_2;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
+				  {
+					  TrjStruc.Equation_Timestamp = micros();
+					  TrjStruc.Submode = 0;
+					  TrjStruc.Mode = 2; ///Final Value Mode
+				  }
+			  }
+			  break;
+		  case 2:
+			  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
+			  break;
+		  }
+}
 
 
 
