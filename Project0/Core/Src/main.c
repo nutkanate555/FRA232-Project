@@ -77,11 +77,11 @@ typedef struct _TrajectoryGenerationStructure
 	uint32_t LinearTimeLSPB;
 
 	uint32_t Theta_min_for_LSPB;
-	uint32_t AngularVelocityMax_Setting;
-	uint32_t AngularAccerationMax_Setting;
+	float AngularVelocityMax_Setting;
+	float AngularAccerationMax_Setting;
 
-	uint32_t AngularVelocity;
-	uint32_t AngularAcceration;
+	float AngularVelocity;
+	float AngularAcceration;
 	uint32_t AngularDisplacementDesire;
 
 	uint32_t Theta_Stamp_0;
@@ -111,6 +111,21 @@ typedef struct _ConverterUnitSystemStructure
 	uint32_t RPMp;
 
 } ConverterUnitSystemStructure;
+
+typedef struct _PIDStructure
+{
+	float Kp;
+	float Ki;
+	float Kd;
+	float ControllerOutput;
+	float OutputDesire;
+	float OutputFeedback;
+	float Integral_Value;
+	float NowError;
+	float PreviousError;
+	uint64_t SamplingTime;
+
+} PIDStructure;
 
 TrajectoryGenerationStructure TrjStruc = {0};
 ConverterUnitSystemStructure CUSSStruc = {0};
@@ -234,8 +249,14 @@ int main(void)
 	   	  case STATE_Link_Moving:
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
+	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
 
+
+
+
+
+	   			  TrjStruc.Loop_Timestamp = micros();
 	   		  }
 
 
@@ -596,8 +617,9 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 	TGSvar->Start_Theta = 0;
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
+	TGSvar->Loop_Freq = 2000;
+	TGSvar->Loop_Period = 1000000/Loop_Freq;
 }
-
 
 void TrajectoryGenerationCalculation()
 {
@@ -617,7 +639,7 @@ void TrajectoryGenerationCalculation()
 	  {
 		 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
 		 TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular)^2)/2.0) + TrjStruc.Theta_Stamp_0;
+		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*((TrjStruc.BlendTimeTriangular)^2))/2.0) + TrjStruc.Theta_Stamp_0;
 		 TrjStruc.Mode = 0;
 		 TrjStruc.Submode = 0;
 	  }
@@ -626,7 +648,7 @@ void TrajectoryGenerationCalculation()
 	  {
 		  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
 		  TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-		  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.Theta_min_for_LSPB)^2)/2.0) + TrjStruc.Theta_Stamp_0;
+		  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*((TrjStruc.Theta_min_for_LSPB)^2))/2.0) + TrjStruc.Theta_Stamp_0;
 		  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
 		  TrjStruc.Mode = 1;
 		  TrjStruc.Submode = 0;
