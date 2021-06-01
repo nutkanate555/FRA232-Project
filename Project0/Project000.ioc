@@ -189,4 +189,3 @@ PC13-ANTI_TAMP.GPIOParameters=GPIO_Label,GPIO_ModeDefaultEXTI
 PA7.Signal=S_TIM3_CH2
 PA2.Locked=true
 PB3.GPIO_Label=SWO
-isbadioc=false
