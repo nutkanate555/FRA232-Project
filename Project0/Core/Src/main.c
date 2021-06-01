@@ -126,7 +126,6 @@ typedef struct _PIDStructure
 	float NowError;
 	float PreviousError;
 	double SamplingTime;
-
 } PIDStructure;
 
 PIDStructure PositionPIDController = {0};
@@ -231,6 +230,7 @@ int main(void)
 	  switch (Munmunbot_State)
 	  {
 	  	  case STATE_Setting:
+
 	  		  break;
 	  	  case STATE_Idle:
 
@@ -280,13 +280,6 @@ int main(void)
 	   			  TrjStruc.Loop_Timestamp = micros();
 
 	   		  }
-
-
-
-
-
-	   		  /// PID Implement
-
 
 	  		  break;
 	  	  case STATE_End_Effector_Working:
@@ -644,7 +637,7 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 	TGSvar->Start_Theta = 0;
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
-	TGSvar->Loop_Freq = 200000;
+	TGSvar->Loop_Freq = 10000;
 	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;

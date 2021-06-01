@@ -37,13 +37,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00016359  00000000  00000000  0002e270  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0000a73a  00000000  00000000  000445c9  2**0
+ 17 .debug_line   0000a738  00000000  00000000  000445c9  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    0008d738  00000000  00000000  0004ed03  2**0
+ 18 .debug_str    0008d738  00000000  00000000  0004ed01  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000053  00000000  00000000  000dc43b  2**0
+ 19 .comment      00000053  00000000  00000000  000dc439  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00003338  00000000  00000000  000dc490  2**2
+ 20 .debug_frame  00003338  00000000  00000000  000dc48c  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1556,9 +1556,7 @@ int main(void)
  8001186:	4908      	ldr	r1, [pc, #32]	; (80011a8 <main+0x144>)
  8001188:	e9c1 2310 	strd	r2, r3, [r1, #64]	; 0x40
 
-
-	   		  /// PID Implement
-
+	   		  }
 
 	  		  break;
  800118c:	e001      	b.n	8001192 <main+0x12e>
@@ -2473,47 +2471,47 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
  8001726:	687b      	ldr	r3, [r7, #4]
  8001728:	2200      	movs	r2, #0
  800172a:	66da      	str	r2, [r3, #108]	; 0x6c
-	TGSvar->Loop_Freq = 200000;
+	TGSvar->Loop_Freq = 10000;
  800172c:	687b      	ldr	r3, [r7, #4]
- 800172e:	4a18      	ldr	r2, [pc, #96]	; (8001790 <TrajectoryGenerationStructureInit+0xe8>)
- 8001730:	649a      	str	r2, [r3, #72]	; 0x48
+ 800172e:	f242 7210 	movw	r2, #10000	; 0x2710
+ 8001732:	649a      	str	r2, [r3, #72]	; 0x48
 	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
- 8001732:	687b      	ldr	r3, [r7, #4]
- 8001734:	6c9b      	ldr	r3, [r3, #72]	; 0x48
- 8001736:	4a17      	ldr	r2, [pc, #92]	; (8001794 <TrajectoryGenerationStructureInit+0xec>)
- 8001738:	fbb2 f3f3 	udiv	r3, r2, r3
- 800173c:	461a      	mov	r2, r3
- 800173e:	f04f 0300 	mov.w	r3, #0
- 8001742:	6879      	ldr	r1, [r7, #4]
- 8001744:	e9c1 2314 	strd	r2, r3, [r1, #80]	; 0x50
+ 8001734:	687b      	ldr	r3, [r7, #4]
+ 8001736:	6c9b      	ldr	r3, [r3, #72]	; 0x48
+ 8001738:	4a15      	ldr	r2, [pc, #84]	; (8001790 <TrajectoryGenerationStructureInit+0xe8>)
+ 800173a:	fbb2 f3f3 	udiv	r3, r2, r3
+ 800173e:	461a      	mov	r2, r3
+ 8001740:	f04f 0300 	mov.w	r3, #0
+ 8001744:	6879      	ldr	r1, [r7, #4]
+ 8001746:	e9c1 2314 	strd	r2, r3, [r1, #80]	; 0x50
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
- 8001748:	687b      	ldr	r3, [r7, #4]
- 800174a:	edd3 6a04 	vldr	s13, [r3, #16]
- 800174e:	687b      	ldr	r3, [r7, #4]
- 8001750:	ed93 7a05 	vldr	s14, [r3, #20]
- 8001754:	eec6 7a87 	vdiv.f32	s15, s13, s14
- 8001758:	687b      	ldr	r3, [r7, #4]
- 800175a:	edc3 7a00 	vstr	s15, [r3]
+ 800174a:	687b      	ldr	r3, [r7, #4]
+ 800174c:	edd3 6a04 	vldr	s13, [r3, #16]
+ 8001750:	687b      	ldr	r3, [r7, #4]
+ 8001752:	ed93 7a05 	vldr	s14, [r3, #20]
+ 8001756:	eec6 7a87 	vdiv.f32	s15, s13, s14
+ 800175a:	687b      	ldr	r3, [r7, #4]
+ 800175c:	edc3 7a00 	vstr	s15, [r3]
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
- 800175e:	687b      	ldr	r3, [r7, #4]
- 8001760:	ed93 7a04 	vldr	s14, [r3, #16]
- 8001764:	687b      	ldr	r3, [r7, #4]
- 8001766:	edd3 7a00 	vldr	s15, [r3]
- 800176a:	ee67 7a27 	vmul.f32	s15, s14, s15
- 800176e:	687b      	ldr	r3, [r7, #4]
- 8001770:	edc3 7a03 	vstr	s15, [r3, #12]
+ 8001760:	687b      	ldr	r3, [r7, #4]
+ 8001762:	ed93 7a04 	vldr	s14, [r3, #16]
+ 8001766:	687b      	ldr	r3, [r7, #4]
+ 8001768:	edd3 7a00 	vldr	s15, [r3]
+ 800176c:	ee67 7a27 	vmul.f32	s15, s14, s15
+ 8001770:	687b      	ldr	r3, [r7, #4]
+ 8001772:	edc3 7a03 	vstr	s15, [r3, #12]
 }
- 8001774:	bf00      	nop
- 8001776:	3708      	adds	r7, #8
- 8001778:	46bd      	mov	sp, r7
- 800177a:	bd80      	pop	{r7, pc}
- 800177c:	f3af 8000 	nop.w
+ 8001776:	bf00      	nop
+ 8001778:	3708      	adds	r7, #8
+ 800177a:	46bd      	mov	sp, r7
+ 800177c:	bd80      	pop	{r7, pc}
+ 800177e:	bf00      	nop
  8001780:	9ba5e354 	.word	0x9ba5e354
  8001784:	400920c4 	.word	0x400920c4
  8001788:	3fd00000 	.word	0x3fd00000
  800178c:	404e0000 	.word	0x404e0000
- 8001790:	00030d40 	.word	0x00030d40
- 8001794:	000f4240 	.word	0x000f4240
+ 8001790:	000f4240 	.word	0x000f4240
+ 8001794:	00000000 	.word	0x00000000
 
 08001798 <VelocityControllerInit>:
 
