@@ -94,7 +94,7 @@ typedef struct _TrajectoryGenerationStructure
 	uint64_t Loop_Timestamp;
 
 	uint32_t Loop_Freq;
-	uint32_t Loop_Period;
+	uint64_t Loop_Period;
 
 	float Desire_Theta;
 	float Start_Theta;
@@ -125,9 +125,12 @@ typedef struct _PIDStructure
 	float Integral_Value;
 	float NowError;
 	float PreviousError;
-	uint64_t SamplingTime;
+	double SamplingTime;
 
 } PIDStructure;
+
+PIDStructure PositionPIDController = {0};
+PIDStructure VelocityPIDController  = {0};
 
 TrajectoryGenerationStructure TrjStruc = {0};
 ConverterUnitSystemStructure CUSSStruc = {0};
@@ -151,6 +154,9 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar, Co
 void TrajectoryGenerationCalculation();
 void TrajectoryGenerationProcess();
 
+void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar);
+void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar);
+void PIDController2in1();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -204,6 +210,11 @@ int main(void)
   ConverterUnitSystemStructureInit(&CUSSStruc);
   TrajectoryGenerationStructureInit(&TrjStruc, &CUSSStruc);
 
+  VelocityControllerInit(&VelocityPIDController, &TrjStruc);
+  DisplacementControllerInit(&PositionPIDController, &TrjStruc);
+
+
+  //tester
   uint16_t input[5] = {8192,4050,4800,4000,10};
   uint8_t ptr = 0;
 
@@ -261,6 +272,10 @@ int main(void)
 	   		  {
 	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
+
+	   			  PIDController2in1();
+
+
 
 	   			  TrjStruc.Loop_Timestamp = micros();
 
@@ -569,6 +584,7 @@ float EncoderVelocity_Update()
 
 	//read data
 	uint32_t EncoderNowPosition = HTIM_ENCODER.Instance->CNT;
+
 	uint64_t EncoderNowTimestamp = micros();
 
 	int32_t EncoderPositionDiff;
@@ -588,6 +604,10 @@ float EncoderVelocity_Update()
 	}
 
 	//Update Position and time
+
+	PositionPIDController.OutputFeedback = EncoderNowPosition;
+	VelocityPIDController.OutputFeedback = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
+
 	EncoderLastPosition = EncoderNowPosition;
 	EncoderLastTimestamp = EncoderNowTimestamp;
 
@@ -629,6 +649,25 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
 }
+
+void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
+{
+	VCvar->Kp = 5;
+	VCvar->Ki = 0.2;
+	VCvar->Kd = 0.1;
+	VCvar->Integral_Value = 0;
+	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
+}
+
+void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
+{
+	VCvar->Kp = 5;
+	VCvar->Ki = 0.2;
+	VCvar->Kd = 0.1;
+	VCvar->Integral_Value = 0;
+	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
+}
+
 
 void TrajectoryGenerationVelocityMaxSetting (TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
@@ -753,7 +792,25 @@ void TrajectoryGenerationProcess()
 		  }
 }
 
+void PIDController2in1()
+{
+	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
+    PositionPIDController.NowError = PositionPIDController.OutputFeedback-PositionPIDController.OutputDesire;
+    PositionPIDController.Integral_Value += PositionPIDController.NowError*PositionPIDController.SamplingTime;
+    PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
+					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
+					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError)/PositionPIDController.SamplingTime);
+    PositionPIDController.PreviousError = PositionPIDController.NowError;
 
+    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
+    VelocityPIDController.NowError = VelocityPIDController.OutputFeedback-VelocityPIDController.OutputDesire;
+    VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
+    VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
+					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
+					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime);
+    VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+
+}
 
 
 
