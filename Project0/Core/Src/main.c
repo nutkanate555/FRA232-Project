@@ -68,25 +68,27 @@ typedef enum
 	STATE_End_Effector_Working
 } Robot_STATE;
 
-Robot_STATE Munmunbot_State = STATE_Setting;
+Robot_STATE Munmunbot_State = STATE_Idle;
 
 typedef struct _TrajectoryGenerationStructure
 {
-	uint32_t BlendTimeLSPB;
-	uint32_t BlendTimeTriangular;
-	uint32_t LinearTimeLSPB;
+	float BlendTimeLSPB;
+	float BlendTimeTriangular;
+	float LinearTimeLSPB;
 
-	uint32_t Theta_min_for_LSPB;
+	float Theta_min_for_LSPB;
 	float AngularVelocityMax_Setting;
 	float AngularAccerationMax_Setting;
 
 	float AngularVelocity;
 	float AngularAcceration;
-	uint32_t AngularDisplacementDesire;
+	float AngularDisplacementDesire;
 
-	uint32_t Theta_Stamp_0;
-	uint32_t Theta_Stamp_1;
-	uint32_t Theta_Stamp_2;
+	float Theta_Stamp_0;
+	float Theta_Stamp_1;
+	float Theta_Stamp_2;
+
+	double Equation_Realtime_Sec;
 
 	uint64_t Equation_Timestamp;
 	uint64_t Loop_Timestamp;
@@ -94,10 +96,10 @@ typedef struct _TrajectoryGenerationStructure
 	uint32_t Loop_Freq;
 	uint32_t Loop_Period;
 
-	uint32_t Desire_Theta;
-	uint32_t Start_Theta;
-	uint32_t Delta_Theta;
-	uint32_t Abs_Delta_Theta;
+	float Desire_Theta;
+	float Start_Theta;
+	float Delta_Theta;
+	float Abs_Delta_Theta;
 
 	uint32_t Mode;
 	uint32_t Submode;
@@ -129,7 +131,7 @@ typedef struct _PIDStructure
 
 TrajectoryGenerationStructure TrjStruc = {0};
 ConverterUnitSystemStructure CUSSStruc = {0};
-
+uint16_t count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -202,7 +204,8 @@ int main(void)
   ConverterUnitSystemStructureInit(&CUSSStruc);
   TrajectoryGenerationStructureInit(&TrjStruc, &CUSSStruc);
 
-
+  uint16_t input[5] = {8192,4050,4800,4000,10};
+  uint8_t ptr = 0;
 
   /* USER CODE END 2 */
 
@@ -230,16 +233,23 @@ int main(void)
 //				  TrjStruc.Theta_min_for_LSPB = TrjStruc.AngularVelocityMax_Setting*TrjStruc.BlendTimeLSPB;
 //			  }
 
-	  		 /// Get the input
-//	  		  if (input[0] != 0)
-//	  		  {
-//	  			  TrjStruc.Start_Theta = htim1.Instance->CNT;
-//	  			  TrjStruc.Desire_Theta = input[0];
-//	  			  /// เลื�?อ�? Array
-//	  			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
-//	  			  Munmunbot_State = STATE_Calculation;
-//	  		  }
-//		  	  break;
+
+	  		  if (input[ptr] != 0)
+	  		  {
+	  			  //TrjStruc.Start_Theta = htim1.Instance->CNT;
+	  			  TrjStruc.Desire_Theta = input[ptr];
+	  			  /// เลื�?อ�? Array
+	  			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+	  			  Munmunbot_State = STATE_Calculation;
+
+	  			 ptr += 1;
+	  			 if (ptr == 5)
+	  			 {
+	  				 ptr = 0;
+	  			 }
+	  		  }
+		  	  break;
+
 
 	  	  case STATE_Calculation:
 	  		  TrajectoryGenerationCalculation();
@@ -252,11 +262,8 @@ int main(void)
 	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
 
-
-
-
-
 	   			  TrjStruc.Loop_Timestamp = micros();
+
 	   		  }
 
 
@@ -613,13 +620,21 @@ void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
 	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;
-	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp)*10)/(255.0*60.0);
+	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
 	TGSvar->Start_Theta = 0;
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
-	TGSvar->Loop_Freq = 2000;
-	TGSvar->Loop_Period = 1000000/Loop_Freq;
+	TGSvar->Loop_Freq = 200000;
+	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
+	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
+	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
 }
+
+void TrajectoryGenerationVelocityMaxSetting (TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
+{
+	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp)*10)/(255.0*60.0);
+}// dont forget to fix this
+
 
 void TrajectoryGenerationCalculation()
 {
@@ -639,7 +654,7 @@ void TrajectoryGenerationCalculation()
 	  {
 		 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
 		 TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*((TrjStruc.BlendTimeTriangular)^2))/2.0) + TrjStruc.Theta_Stamp_0;
+		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular*TrjStruc.BlendTimeTriangular))/2.0) + TrjStruc.Theta_Stamp_0;
 		 TrjStruc.Mode = 0;
 		 TrjStruc.Submode = 0;
 	  }
@@ -648,7 +663,7 @@ void TrajectoryGenerationCalculation()
 	  {
 		  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
 		  TrjStruc.Theta_Stamp_0 = TrjStruc.Start_Theta;
-		  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*((TrjStruc.Theta_min_for_LSPB)^2))/2.0) + TrjStruc.Theta_Stamp_0;
+		  TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeLSPB*TrjStruc.BlendTimeLSPB))/2.0) + TrjStruc.Theta_Stamp_0;
 		  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
 		  TrjStruc.Mode = 1;
 		  TrjStruc.Submode = 0;
@@ -659,14 +674,19 @@ void TrajectoryGenerationCalculation()
 
 void TrajectoryGenerationProcess()
 {
+
+	TrjStruc.Equation_Realtime_Sec = (micros()-TrjStruc.Equation_Timestamp)/1000000.0;
+
 	 switch (TrjStruc.Mode)
 	  {
 		  case 0: ///Triangular
 			  if (TrjStruc.Submode == 0)
 			  {
 				  TrjStruc.AngularDisplacementDesire =
-						  ((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
-				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
+						  ((TrjStruc.AngularAcceration*0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
+						  +TrjStruc.Theta_Stamp_0;
+				  count += 1;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 1;
@@ -675,10 +695,10 @@ void TrajectoryGenerationProcess()
 			  else if (TrjStruc.Submode == 1)
 			  {
 				  TrjStruc.AngularDisplacementDesire =
-						  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
-						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(micros()-TrjStruc.Equation_Timestamp))
+						  ((TrjStruc.AngularAcceration*-0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
+						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_1;
-				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular)
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 0;
@@ -691,8 +711,10 @@ void TrajectoryGenerationProcess()
 			  if (TrjStruc.Submode == 0)
 			  {
 				  TrjStruc.AngularDisplacementDesire =
-							((TrjStruc.AngularAcceration*0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))+TrjStruc.Theta_Stamp_0;
-				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
+							((TrjStruc.AngularAcceration*0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
+							+TrjStruc.Theta_Stamp_0;
+				  count += 1;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 1;
@@ -701,8 +723,9 @@ void TrajectoryGenerationProcess()
 			  else if (TrjStruc.Submode == 1)
 			  {
 				  TrjStruc.AngularDisplacementDesire =
-						  (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))+TrjStruc.Theta_Stamp_1;
-				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB)
+						  (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
+						  +TrjStruc.Theta_Stamp_1;
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 2;
@@ -711,10 +734,10 @@ void TrajectoryGenerationProcess()
 			  else if (TrjStruc.Submode == 2)
 			  {
 				  TrjStruc.AngularDisplacementDesire =
-						  ((TrjStruc.AngularAcceration*-0.5)*((micros()-TrjStruc.Equation_Timestamp)^2))
-						  + (TrjStruc.AngularVelocity*(micros()-TrjStruc.Equation_Timestamp))
+						  ((TrjStruc.AngularAcceration*-0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
+						  + (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_2;
-				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB)
+				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 0;
@@ -724,6 +747,8 @@ void TrajectoryGenerationProcess()
 			  break;
 		  case 2:
 			  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
+			  TrjStruc.Start_Theta = TrjStruc.Desire_Theta;
+			  Munmunbot_State = STATE_Idle;
 			  break;
 		  }
 }
