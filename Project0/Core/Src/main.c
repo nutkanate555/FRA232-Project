@@ -48,6 +48,8 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
 
@@ -55,14 +57,34 @@ uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
 
+typedef struct _UartStructure
+{
+	UART_HandleTypeDef *huart;
+	uint16_t TxLen, RxLen;
+	uint8_t *TxBuffer;
+	uint16_t TxTail, TxHead;
+	uint8_t *RxBuffer;
+	uint16_t RxTail; //RXHeadUseDMA
 
+} UARTStucrture;
 
-
+UARTStucrture UART2 = { 0 };
 
 typedef enum
 {
-	STATE_Setting,    /// Set_station_position
+	PP_STARTandMode,
+	PP_Frame2_Data_0,
+	PP_Frame2_Data_1,
+	PP_Frame3_Data_0,
+	PP_Frame3_Data_1,
+	PP_CheckSum,
+} PPSTATE;
+
+typedef enum
+{
+	STATE_Disconnected,    /// Set_station_position
 	STATE_Idle,
+	STATE_PrepareDATA,
 	STATE_Calculation,
 	STATE_Link_Moving,
 	STATE_End_Effector_Working
@@ -128,6 +150,25 @@ typedef struct _PIDStructure
 	double SamplingTime;
 } PIDStructure;
 
+
+///Station Setting
+uint16_t StationPos[10] = {10,20,30,40,50,60,70,80,90,100};
+
+uint8_t Angularpos_InputArray[256] = {0};
+uint16_t Angularpos_InputNumber = 0;
+
+typedef enum
+{
+	LMM_Not_Set,
+	LMM_Set_Pos_Directly,
+	LMM_Set_Goal_1_Station,
+	LMM_Set_Goal_n_Station
+} LinkMovingMode;
+
+LinkMovingMode MovingLinkMode = LMM_Not_Set;
+uint8_t NumberOfStationToGo = 0;
+uint8_t NumberOfStationPTR = 0;
+
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
 
@@ -139,6 +180,7 @@ uint16_t count = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
@@ -156,6 +198,17 @@ void TrajectoryGenerationProcess();
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar);
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar);
 void PIDController2in1();
+
+void UARTInit(UARTStucrture *uart);
+void UARTResetStart(UARTStucrture *uart);
+uint32_t UARTGetRxHead(UARTStucrture *uart);
+int16_t UARTReadChar(UARTStucrture *uart);
+void UARTTxDumpBuffer(UARTStucrture *uart);
+void UARTTxWrite(UARTStucrture *uart, uint8_t *pData, uint16_t len);
+void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart);
+
+void ACK1Return(UARTStucrture *uart);
+void ACK2Return(UARTStucrture *uart);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -192,6 +245,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
@@ -212,10 +266,12 @@ int main(void)
   VelocityControllerInit(&VelocityPIDController, &TrjStruc);
   DisplacementControllerInit(&PositionPIDController, &TrjStruc);
 
-
-  //tester
-  uint16_t input[5] = {8192,4050,4800,4000,10};
-  uint8_t ptr = 0;
+  ///UART init
+  UART2.huart = &huart2;
+  UART2.RxLen = 255;
+  UART2.TxLen = 255;
+  UARTInit(&UART2);
+  UARTResetStart(&UART2);
 
   /* USER CODE END 2 */
 
@@ -226,41 +282,60 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  int16_t inputChar = UARTReadChar(&UART2);
+	  if (inputChar != -1)
+	  {
+		  Munmunbot_Protocol(inputChar, &UART2);
+	  }
 
 	  switch (Munmunbot_State)
 	  {
-	  	  case STATE_Setting:
-
+	  	  case STATE_Disconnected:
 	  		  break;
 	  	  case STATE_Idle:
-
-	  		/// Get Vmax input
-//	  		  if (Vmax_trigger == 1)
-//			  {
-//				  ///Set AngularVelomax
-//				  TrjStruc.AngularVelocityMax_Setting = VelocityMax;
-//				  TrjStruc.BlendTimeLSPB = TrjStruc.AngularVelocityMax_Setting/(TrjStruc.AngularAccerationMax_Setting);
-//				  ///find Minimum LSPB Angular Distance
-//				  TrjStruc.Theta_min_for_LSPB = TrjStruc.AngularVelocityMax_Setting*TrjStruc.BlendTimeLSPB;
-//			  }
-
-
-	  		  if (input[ptr] != 0)
-	  		  {
-	  			  //TrjStruc.Start_Theta = htim1.Instance->CNT;
-	  			  TrjStruc.Desire_Theta = input[ptr];
-	  			  /// เลื�?อ�? Array
-	  			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
-	  			  Munmunbot_State = STATE_Calculation;
-
-	  			 ptr += 1;
-	  			 if (ptr == 5)
-	  			 {
-	  				 ptr = 0;
-	  			 }
-	  		  }
 		  	  break;
 
+	  	  case STATE_PrepareDATA:
+	  		  if (MovingLinkMode == LMM_Set_Pos_Directly)
+			  {
+	  			  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.141));
+	  			  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+	  			  {
+	  				 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+	  			  }
+				  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+				  MovingLinkMode = LMM_Not_Set;
+				  Munmunbot_State = STATE_Calculation;
+			  }
+	  		  else if (MovingLinkMode == LMM_Set_Goal_1_Station || MovingLinkMode == LMM_Set_Goal_n_Station )
+			  {
+	  			  if (NumberOfStationToGo == 0)
+	  			    {
+						Munmunbot_State = STATE_Idle;
+						NumberOfStationPTR = 0;
+						NumberOfStationToGo = 0;
+						MovingLinkMode = LMM_Not_Set;
+						ACK2Return(&UART2);
+						break;
+					}
+
+					TrjStruc.Desire_Theta = ( StationPos[Angularpos_InputArray[NumberOfStationPTR]]*CUSSStruc.PPRxQEI/(360.0));
+					if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+					{
+						TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+					}
+					TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+					Munmunbot_State = STATE_Calculation;
+
+					NumberOfStationPTR += 1;
+					NumberOfStationToGo -= 1;
+			  }
+	  		  else
+	  		  {
+	  			MovingLinkMode = LMM_Not_Set;
+	  			Munmunbot_State = STATE_Idle;
+	  		  }
+		  	  break;
 
 	  	  case STATE_Calculation:
 	  		  TrajectoryGenerationCalculation();
@@ -272,13 +347,10 @@ int main(void)
 	   		  {
 	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
-
 	   			  PIDController2in1();
 
 
-
 	   			  TrjStruc.Loop_Timestamp = micros();
-
 	   		  }
 
 	  		  break;
@@ -513,10 +585,10 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 512000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Parity = UART_PARITY_EVEN;
   huart2.Init.Mode = UART_MODE_TX_RX;
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -527,6 +599,25 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
@@ -665,7 +756,9 @@ void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructur
 void TrajectoryGenerationVelocityMaxSetting (TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp)*10)/(255.0*60.0);
-}// dont forget to fix this
+	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
+	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
+}
 
 
 void TrajectoryGenerationCalculation()
@@ -703,6 +796,13 @@ void TrajectoryGenerationCalculation()
 	 TrjStruc.Equation_Timestamp = micros();
 	 TrjStruc.Loop_Timestamp = micros();
 }
+
+void PrepareDATAProcess()
+{
+}
+
+
+
 
 void TrajectoryGenerationProcess()
 {
@@ -803,6 +903,320 @@ void PIDController2in1()
 					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime);
     VelocityPIDController.PreviousError = VelocityPIDController.NowError;
 
+}
+
+
+
+///UART ZONE
+void UARTInit(UARTStucrture *uart)
+{
+	//dynamic memory allocate
+	uart->RxBuffer = (uint8_t*) calloc(sizeof(uint8_t), UART2.RxLen);
+	uart->TxBuffer = (uint8_t*) calloc(sizeof(uint8_t), UART2.TxLen);
+	uart->RxTail = 0;
+	uart->TxTail = 0;
+	uart->TxHead = 0;
+}
+
+void UARTResetStart(UARTStucrture *uart)
+{
+	HAL_UART_Receive_DMA(uart->huart, uart->RxBuffer, uart->RxLen);
+}
+
+uint32_t UARTGetRxHead(UARTStucrture *uart)
+{
+	return uart->RxLen - __HAL_DMA_GET_COUNTER(uart->huart->hdmarx);
+}
+
+int16_t UARTReadChar(UARTStucrture *uart)
+{
+	int16_t Result = -1; // -1 Mean no new data
+
+	//check Buffer Position
+	if (uart->RxTail != UARTGetRxHead(uart))
+	{
+		//get data from buffer
+		Result = uart->RxBuffer[uart->RxTail];
+		uart->RxTail = (uart->RxTail + 1) % uart->RxLen;
+
+	}
+	return Result;
+}
+
+void UARTTxDumpBuffer(UARTStucrture *uart)
+{
+	static uint8_t MultiProcessBlocker = 0;
+
+	if (uart->huart->gState == HAL_UART_STATE_READY && !MultiProcessBlocker)
+	{
+		MultiProcessBlocker = 1;
+
+		if (uart->TxHead != uart->TxTail)
+		{
+			//find len of data in buffer (Circular buffer but do in one way)
+			uint16_t sentingLen =
+					uart->TxHead > uart->TxTail ?
+							uart->TxHead - uart->TxTail :
+							uart->TxLen - uart->TxTail;
+
+			//sent data via DMA
+			HAL_UART_Transmit_DMA(uart->huart, &(uart->TxBuffer[uart->TxTail]),
+					sentingLen);
+			//move tail to new position
+			uart->TxTail = (uart->TxTail + sentingLen) % uart->TxLen;
+
+		}
+		MultiProcessBlocker = 0;
+	}
+}
+
+void UARTTxWrite(UARTStucrture *uart, uint8_t *pData, uint16_t len)
+{
+	//check data len is more than buffur?
+	uint16_t lenAddBuffer = (len <= uart->TxLen) ? len : uart->TxLen;
+	// find number of data before end of ring buffer
+	uint16_t numberOfdataCanCopy =
+			lenAddBuffer <= uart->TxLen - uart->TxHead ?
+					lenAddBuffer : uart->TxLen - uart->TxHead;
+	//copy data to the buffer
+	memcpy(&(uart->TxBuffer[uart->TxHead]), pData, numberOfdataCanCopy);
+
+	//Move Head to new position
+
+	uart->TxHead = (uart->TxHead + lenAddBuffer) % uart->TxLen;
+	//Check that we copy all data That We can?
+	if (lenAddBuffer != numberOfdataCanCopy)
+	{
+		memcpy(uart->TxBuffer, &(pData[numberOfdataCanCopy]),
+				lenAddBuffer - numberOfdataCanCopy);
+	}
+	UARTTxDumpBuffer(uart);
+
+}
+
+void ACK1Return(UARTStucrture *uart)
+{
+	{
+	uint8_t temp[] = {0x58, 0b01110101};
+	UARTTxWrite(uart, temp, 2);
+	}
+}
+
+void ACK2Return(UARTStucrture *uart)
+{
+	{
+	uint8_t temp[] = {70, 110};
+	UARTTxWrite(uart, temp, 2);
+	}
+}
+
+
+void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
+{
+	static PPSTATE Munmunbot_Protocol_State = PP_STARTandMode;
+	static uint16_t n_station = 0;
+	static uint8_t ProtocolMode = 0;
+	static uint8_t parameter[256] = {0};
+	static uint8_t parameter_ptr = 0;
+	static uint16_t Data_HAck = 0;
+	static uint32_t CheckSum = 0;
+
+	switch (Munmunbot_Protocol_State)
+	{
+		case PP_STARTandMode:
+			if (((dataIn>>4) & 0b1111) == 0b1001)
+			{
+				CheckSum = dataIn;
+				ProtocolMode = dataIn & 0b1111;
+
+				if (ProtocolMode == 7)
+				{
+					Munmunbot_Protocol_State = PP_Frame3_Data_0; ///Frame3
+				}
+				else if (ProtocolMode == 1 || ProtocolMode == 4 || ProtocolMode == 5 ||ProtocolMode == 6)
+				{
+					Munmunbot_Protocol_State = PP_Frame2_Data_0; //Frame2
+				}
+				else if (ProtocolMode == 2 || ProtocolMode == 3 || ProtocolMode == 8 || ProtocolMode == 9 || ProtocolMode == 10 ||
+						ProtocolMode == 11 ||ProtocolMode == 12 ||ProtocolMode == 13 || ProtocolMode == 14 )
+				{
+					Munmunbot_Protocol_State = PP_CheckSum;   /// Frame1
+				}
+			}
+			break;
+		case PP_Frame2_Data_0:
+			 CheckSum += dataIn;
+			 Data_HAck = ((dataIn&0b11111111)<<8)&0b1111111100000000;
+			 parameter[0] = dataIn&0b1111;
+			 parameter[1] = (dataIn>>4)&0b1111;
+			 Munmunbot_Protocol_State = PP_Frame2_Data_1;
+			 break;
+		case PP_Frame2_Data_1:
+			 CheckSum += dataIn;
+			 Data_HAck = (dataIn&0b11111111) | Data_HAck;
+			 parameter[2] = dataIn&0b1111;
+			 parameter[3] = (dataIn>>4)&0b1111;
+			 Munmunbot_Protocol_State = PP_CheckSum;
+			 break;
+
+		case PP_Frame3_Data_0:
+			   CheckSum += dataIn;
+		   	   n_station = dataIn;
+			   Munmunbot_Protocol_State = PP_Frame3_Data_1;
+			   break;
+
+		case PP_Frame3_Data_1:
+				CheckSum += dataIn;
+				if (n_station > 2)
+				{
+					parameter[parameter_ptr] = dataIn&0b1111;
+					parameter_ptr += 1;
+					parameter[parameter_ptr] = (dataIn>>4)&0b1111;
+					parameter_ptr += 1;
+					n_station -= 2;
+				}
+				else if (n_station == 1)
+				{
+					parameter[parameter_ptr] = dataIn&0b1111;
+					n_station -= 1;
+				}
+				if  (n_station == 0)
+				{
+					Munmunbot_Protocol_State = PP_CheckSum;
+				}
+				break;
+
+			case PP_CheckSum:
+				CheckSum = ~CheckSum;
+				if (CheckSum == dataIn)
+				{
+					switch (ProtocolMode)
+					{
+					case 1: ///Test Command ##Complete##
+						{
+						uint8_t temp[] =
+						{0b10010001, parameter[0], parameter[1], 0b0};
+						temp[3] = ~(temp[0]+temp[1]+temp[2]);
+						UARTTxWrite(uart, temp, 4);
+						}
+						break;
+					case 2: //Connect MCU ##Complete##
+						if (Munmunbot_State == STATE_Disconnected)
+						{
+							Munmunbot_State = STATE_Idle;
+							ACK1Return(uart);
+						}
+						break;
+					case 3: //Disconnect MCU ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							Munmunbot_State = STATE_Disconnected;
+							ACK1Return(uart);
+						}
+						break;
+					case 4: //Set Angular Velocity ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							CUSSStruc.RPMp = Data_HAck;
+							TrajectoryGenerationVelocityMaxSetting(&TrjStruc , &CUSSStruc);
+							ACK1Return(uart);
+						}
+						break;
+					case 5:   //Set Angular pos ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							Angularpos_InputNumber = Data_HAck;
+							MovingLinkMode = LMM_Set_Pos_Directly;
+							ACK1Return(uart);
+						}
+						break;
+					case 6:  /// Set 1 Station ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							Angularpos_InputArray[0] = parameter[0];
+							MovingLinkMode = LMM_Set_Goal_1_Station;
+							NumberOfStationToGo = 1;
+							ACK1Return(uart);
+						}
+						break;
+					case 7:  /// Set n Station ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							MovingLinkMode = LMM_Set_Goal_n_Station;
+							for (int i = 0; i < n_station; i++)
+							{
+								Angularpos_InputArray[i] = parameter[i];
+							}
+							NumberOfStationToGo = n_station;
+							ACK1Return(uart);
+						}
+						break;
+					case 8:  /// Go go ##Complete##
+						if (Munmunbot_State == STATE_Idle)
+						{
+							ACK1Return(uart);
+							Munmunbot_State = STATE_PrepareDATA;
+						}
+						break;
+					case 9:
+						if (Munmunbot_State == STATE_End_Effector_Working)
+						{
+							ACK1Return(uart);
+							{
+								uint8_t temp[] =
+								{0b10010001, parameter[0], parameter[1], 0b0};
+								temp[3] = ~(temp[0]+temp[1]+temp[2]);
+								UARTTxWrite(uart, temp, 4);
+							}
+						}
+						break;
+					case 10:
+						if (Munmunbot_State == STATE_End_Effector_Working)
+						{
+							ACK1Return(uart);
+							{
+								uint8_t temp[] =
+								{0b10010001, parameter[0], parameter[1], 0b0};
+								temp[3] = ~(temp[0]+temp[1]+temp[2]);
+								UARTTxWrite(uart, temp, 4);
+							}
+						}
+						break;
+					case 11:
+						if (Munmunbot_State == STATE_End_Effector_Working)
+						{
+							ACK1Return(uart);
+							{
+								uint8_t temp[] =
+								{0b10010001, parameter[0], parameter[1], 0b0};
+								temp[3] = ~(temp[0]+temp[1]+temp[2]);
+								UARTTxWrite(uart, temp, 4);
+							}
+						}
+						break;
+					case 12:
+						if (Munmunbot_State == STATE_Idle)
+						{
+							ACK1Return(uart);
+						}
+						break;
+					case 13:
+						if (Munmunbot_State == STATE_Idle)
+						{
+							ACK1Return(uart);
+						}
+						break;
+					case 14:
+						if (Munmunbot_State == STATE_Idle)
+						{
+							ACK1Return(uart);
+						}
+						break;
+				}
+			}
+			Munmunbot_Protocol_State = PP_STARTandMode;
+			break;
+	}
 }
 
 
