@@ -349,6 +349,7 @@ int main(void)
 	   			  TrajectoryGenerationProcess();
 	   			  PIDController2in1();
 
+	   			  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (PWMOut*-1));
 
 	   			  TrjStruc.Loop_Timestamp = micros();
 	   		  }
@@ -1214,6 +1215,11 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 						break;
 				}
 			}
+			n_station = 0;
+			ProtocolMode = 0;
+			parameter_ptr = 0;
+			Data_HAck = 0;
+			CheckSum = 0;
 			Munmunbot_Protocol_State = PP_STARTandMode;
 			break;
 	}
