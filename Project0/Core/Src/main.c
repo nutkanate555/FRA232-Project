@@ -70,6 +70,14 @@ typedef struct _UartStructure
 
 UARTStucrture UART2 = { 0 };
 
+typedef struct _MotorDriveStructure
+{
+	uint8_t DIR;
+	uint32_t PWMOut;
+}MotorDriveStructure;
+
+MotorDriveStructure DCMotorStruc = {0};
+
 typedef enum
 {
 	PP_STARTandMode,
@@ -166,6 +174,8 @@ typedef enum
 } LinkMovingMode;
 
 LinkMovingMode MovingLinkMode = LMM_Not_Set;
+
+uint8_t Current_Station = 0;
 uint8_t NumberOfStationToGo = 0;
 uint8_t NumberOfStationPTR = 0;
 
@@ -188,7 +198,7 @@ static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 uint64_t micros();
-float EncoderVelocity_Update();
+void EncoderVelocityAndPosition_Update();
 
 void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar);
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar, ConverterUnitSystemStructure *CUSSvar);
@@ -298,15 +308,15 @@ int main(void)
 	  	  case STATE_PrepareDATA:
 	  		  if (MovingLinkMode == LMM_Set_Pos_Directly)
 			  {
-	  			  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.141));
+	  			  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(1000.0*2.0*3.141));
 	  			  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
 	  			  {
 	  				 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 	  			  }
 				  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
-				  MovingLinkMode = LMM_Not_Set;
 				  Munmunbot_State = STATE_Calculation;
 			  }
+
 	  		  else if (MovingLinkMode == LMM_Set_Goal_1_Station || MovingLinkMode == LMM_Set_Goal_n_Station )
 			  {
 	  			  if (NumberOfStationToGo == 0)
@@ -316,19 +326,33 @@ int main(void)
 						NumberOfStationToGo = 0;
 						MovingLinkMode = LMM_Not_Set;
 						ACK2Return(&UART2);
-						break;
 					}
+	  			  else
+				  {
+	  				Current_Station = Angularpos_InputArray[NumberOfStationPTR];
+	  				if (Current_Station > 10)
+	  				{
+	  					Munmunbot_State = STATE_Idle;
+						NumberOfStationPTR = 0;
+						NumberOfStationToGo = 0;
+						MovingLinkMode = LMM_Not_Set;
+						ACK2Return(&UART2);
+	  				}
+	  				else
+	  				{
+	  					TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));
+						if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+						{
+							TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+						}
+						TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+						Munmunbot_State = STATE_Calculation;
 
-					TrjStruc.Desire_Theta = ( StationPos[Angularpos_InputArray[NumberOfStationPTR]]*CUSSStruc.PPRxQEI/(360.0));
-					if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
-					{
-						TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
-					}
-					TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
-					Munmunbot_State = STATE_Calculation;
+						NumberOfStationPTR += 1;
+						NumberOfStationToGo -= 1;
+                    }
 
-					NumberOfStationPTR += 1;
-					NumberOfStationToGo -= 1;
+				  }
 			  }
 	  		  else
 	  		  {
@@ -347,10 +371,25 @@ int main(void)
 	   		  {
 	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
+	   			  EncoderVelocityAndPosition_Update();
 	   			  PIDController2in1();
 
-	   			  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (PWMOut*-1));
+	   			  DCMotorStruc.PWMOut = abs(VelocityPIDController.ControllerOutput);
+	   			  if (DCMotorStruc.PWMOut > 10000)
+	   			  {
+	   				 DCMotorStruc.PWMOut = 10000;
+	   			  }
 
+	   			  if (VelocityPIDController.ControllerOutput >= 0)
+	   			  {
+	   				  DCMotorStruc.DIR = 1;
+	   			  }
+	   			  else if ( VelocityPIDController.ControllerOutput < 0)
+	   			  {
+	   				  DCMotorStruc.DIR = 0;
+	   			  }
+	   			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
+	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, DCMotorStruc.PWMOut);
 	   			  TrjStruc.Loop_Timestamp = micros();
 	   		  }
 
@@ -559,10 +598,6 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
@@ -640,6 +675,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -653,6 +691,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
@@ -661,7 +706,7 @@ static void MX_GPIO_Init(void)
 #define  MAX_SUBPOSITION_OVERFLOW 4096
 #define  MAX_ENCODER_PERIOD 8192
 
-float EncoderVelocity_Update()
+void EncoderVelocityAndPosition_Update()
 {
 	//Save Last state
 	static uint32_t EncoderLastPosition = 0;
@@ -690,15 +735,12 @@ float EncoderVelocity_Update()
 
 	//Update Position and time
 
-	PositionPIDController.OutputFeedback = EncoderNowPosition;
-	VelocityPIDController.OutputFeedback = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
-
 	EncoderLastPosition = EncoderNowPosition;
 	EncoderLastTimestamp = EncoderNowTimestamp;
 
-	//Calculate velocity
-	//EncoderTimeDiff is in uS
-	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
+	//Calculate velocity and Encoder Pos
+	PositionPIDController.OutputFeedback = EncoderNowPosition;
+	VelocityPIDController.OutputFeedback = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
 
 }
 
@@ -798,13 +840,6 @@ void TrajectoryGenerationCalculation()
 	 TrjStruc.Loop_Timestamp = micros();
 }
 
-void PrepareDATAProcess()
-{
-}
-
-
-
-
 void TrajectoryGenerationProcess()
 {
 
@@ -903,7 +938,6 @@ void PIDController2in1()
 					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
 					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime);
     VelocityPIDController.PreviousError = VelocityPIDController.NowError;
-
 }
 
 
@@ -1021,6 +1055,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 	static uint8_t parameter_ptr = 0;
 	static uint16_t Data_HAck = 0;
 	static uint32_t CheckSum = 0;
+	static uint16_t DataForReturn = 0;
 
 	switch (Munmunbot_Protocol_State)
 	{
@@ -1152,44 +1187,54 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							ACK1Return(uart);
 						}
 						break;
-					case 8:  /// Go go ##Complete##
+					case 8:  /// Go go ##Complete##  ///But must implement return ACK after it's done
 						if (Munmunbot_State == STATE_Idle)
 						{
-							ACK1Return(uart);
 							Munmunbot_State = STATE_PrepareDATA;
+							ACK1Return(uart);
 						}
 						break;
-					case 9:
+
+					case 9:  /// Return Current Station   ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
 							ACK1Return(uart);
 							{
 								uint8_t temp[] =
-								{0b10010001, parameter[0], parameter[1], 0b0};
+								{153,  0b0,  0b0, 0b0};
+								DataForReturn = Current_Station&(0xff);
+								temp[1] = (DataForReturn>>8)&(0xff);
+								temp[2] = (DataForReturn)&(0xff);
 								temp[3] = ~(temp[0]+temp[1]+temp[2]);
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
 						break;
-					case 10:
+					case 10: /// Return Angular Position  ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
 							ACK1Return(uart);
 							{
 								uint8_t temp[] =
-								{0b10010001, parameter[0], parameter[1], 0b0};
+								{154, 0b0,  0b0, 0b0};
+								DataForReturn = (PositionPIDController.ControllerOutput*2*3.141*1000)/(CUSSStruc.PPRxQEI);
+								temp[1] = (DataForReturn>>8)&(0xff);
+								temp[2] = (DataForReturn)&(0xff);
 								temp[3] = ~(temp[0]+temp[1]+temp[2]);
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
 						break;
-					case 11:
+					case 11: /// Return Angular Velocity Max  ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
 							ACK1Return(uart);
 							{
 								uint8_t temp[] =
-								{0b10010001, parameter[0], parameter[1], 0b0};
+								{155, 0b0,  0b0, 0b0};
+								DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60*255)/(CUSSStruc.PPRxQEI*10);
+								temp[1] = (DataForReturn>>8)&(0xff);
+								temp[2] = (DataForReturn)&(0xff);
 								temp[3] = ~(temp[0]+temp[1]+temp[2]);
 								UARTTxWrite(uart, temp, 4);
 							}
