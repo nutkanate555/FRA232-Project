@@ -110,8 +110,6 @@ typedef enum
 
 SetHome_STATE SethomeMode = SetHomeState_0;
 
-
-
 typedef struct _TrajectoryGenerationStructure
 {
 	float BlendTimeLSPB;
@@ -190,6 +188,8 @@ LinkMovingMode MovingLinkMode = LMM_Not_Set;
 uint8_t Current_Station = 0;
 uint8_t NumberOfStationToGo = 0;
 uint8_t NumberOfStationPTR = 0;
+uint32_t Plant_input = 0;
+uint8_t Moving_Link_Task_Flag = 0;
 
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
@@ -208,7 +208,6 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-
 uint64_t micros();
 void EncoderVelocityAndPosition_Update();
 
@@ -230,6 +229,7 @@ int16_t UARTReadChar(UARTStucrture *uart);
 void UARTTxDumpBuffer(UARTStucrture *uart);
 void UARTTxWrite(UARTStucrture *uart, uint8_t *pData, uint16_t len);
 void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart);
+void Encoder_SetHome_Position();
 
 void ACK1Return(UARTStucrture *uart);
 void ACK2Return(UARTStucrture *uart);
@@ -335,18 +335,17 @@ int main(void)
 	   			  TrajectoryGenerationProcess();
 	   			  EncoderVelocityAndPosition_Update();
 	   			  PIDController2in1();
-
-	   			  DCMotorStruc.PWMOut = abs(VelocityPIDController.ControllerOutput);
+	   			  Plant_input = PositionPIDController.ControllerOutput;
+	   			  DCMotorStruc.PWMOut = abs(Plant_input);
 	   			  if (DCMotorStruc.PWMOut > 10000)
 	   			  {
 	   				 DCMotorStruc.PWMOut = 10000;
 	   			  }
-
-	   			  if (VelocityPIDController.ControllerOutput >= 0)
+	   			  if (Plant_input >= 0)
 	   			  {
 	   				  DCMotorStruc.DIR = 1;
 	   			  }
-	   			  else if ( VelocityPIDController.ControllerOutput < 0)
+	   			  else if (Plant_input < 0)
 	   			  {
 	   				  DCMotorStruc.DIR = 0;
 	   			  }
@@ -354,7 +353,9 @@ int main(void)
 	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut);
 	   			  TrjStruc.Loop_Timestamp = micros();
 
-	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 1) && (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 1))
+	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 1) &&
+	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 1) &&
+						  (Moving_Link_Task_Flag == 1))
 	   			  {
 	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
 	   				  {
@@ -362,11 +363,12 @@ int main(void)
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   					ACK2Return(&UART2);
 	   				  }
-	   				  else
+	   				  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
 	   				  {
 	   					Munmunbot_State = STATE_End_Effector_Working;
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   				  }
+	   				 Moving_Link_Task_Flag = 0;
 	   			  }
 
 	   		  }
@@ -401,12 +403,12 @@ int main(void)
 					if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 0)
 					{
 						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+						Encoder_SetHome_Position();
 						SethomeMode = SetHomeState_0;
 						Munmunbot_State = STATE_Idle;
 						ACK1Return(&UART2);
 					}
 				    break;
-
 			  }
 
 	  		  break;
@@ -731,7 +733,7 @@ void EncoderVelocityAndPosition_Update()
 	//Save Last state
 	static uint32_t EncoderLastPosition = 0;
 	static uint64_t EncoderLastTimestamp = 0;
-
+	static uint32_t Velocity_Output = 0;
 	//read data
 	uint32_t EncoderNowPosition = HTIM_ENCODER.Instance->CNT;
 
@@ -760,9 +762,19 @@ void EncoderVelocityAndPosition_Update()
 
 	//Calculate velocity and Encoder Pos
 	PositionPIDController.OutputFeedback = EncoderNowPosition;
-	VelocityPIDController.OutputFeedback = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
 
+	Velocity_Output = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
+
+	// LPF
+	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*249))/250.0;
 }
+
+void Encoder_SetHome_Position()
+{
+	HTIM_ENCODER.Instance->CNT = 0;
+}
+
+
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -989,6 +1001,7 @@ void TrajectoryGenerationProcess()
 			  }
 			  break;
 		  case 2:
+			  Moving_Link_Task_Flag = 1;
 			  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
 			  break;
 		  }
@@ -1011,6 +1024,7 @@ void PIDController2in1()
 					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
 					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime);
     VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+
 }
 
 
@@ -1208,36 +1222,37 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 						temp[3] = ~(temp[0]+temp[1]+temp[2]);
 						UARTTxWrite(uart, temp, 4);
 						}
+						ACK1Return(uart);
 						break;
 					case 2: //Connect MCU ##Complete##
 						if (Munmunbot_State == STATE_Disconnected)
 						{
 							Munmunbot_State = STATE_Idle;
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 3: //Disconnect MCU ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
 							Munmunbot_State = STATE_Disconnected;
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 4: //Set Angular Velocity ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
 							CUSSStruc.RPMp = Data_HAck;
 							TrajectoryGenerationVelocityMaxSetting(&TrjStruc , &CUSSStruc);
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 5:   //Set Angular pos ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
 							Angularpos_InputNumber = Data_HAck;
 							MovingLinkMode = LMM_Set_Pos_Directly;
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 6:  /// Set 1 Station ##Complete##
 						if (Munmunbot_State == STATE_Idle)
@@ -1245,8 +1260,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							Angularpos_InputArray[0] = parameter[0];
 							MovingLinkMode = LMM_Set_Goal_1_Station;
 							NumberOfStationToGo = 1;
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 7:  /// Set n Station ##Complete##
 						if (Munmunbot_State == STATE_Idle)
@@ -1257,8 +1272,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								Angularpos_InputArray[i] = parameter[i];
 							}
 							NumberOfStationToGo = n_station;
-							ACK1Return(uart);
 						}
+						ACK1Return(uart);
 						break;
 					case 8:  /// Go go ##Complete##  ///But must implement return ACK after it's done
 						if (Munmunbot_State == STATE_Idle)
@@ -1266,12 +1281,16 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							Munmunbot_State = STATE_PrepareDATA;
 							ACK1Return(uart);
 						}
+						else
+						{
+							ACK1Return(uart);
+							ACK2Return(uart);
+						}
 						break;
 
 					case 9:  /// Return Current Station   ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
-							ACK1Return(uart);
 							{
 								uint8_t temp[] =
 								{153,  0b0,  0b0, 0b0};
@@ -1282,11 +1301,12 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
+						ACK1Return(uart);
 						break;
+
 					case 10: /// Return Angular Position  ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
-							ACK1Return(uart);
 							{
 								uint8_t temp[] =
 								{154, 0b0,  0b0, 0b0};
@@ -1297,11 +1317,12 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
+						ACK1Return(uart);
 						break;
+
 					case 11: /// Return Angular Velocity Max  ##Complete##
 						if (Munmunbot_State == STATE_End_Effector_Working)
 						{
-							ACK1Return(uart);
 							{
 								uint8_t temp[] =
 								{155, 0b0,  0b0, 0b0};
@@ -1312,25 +1333,31 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
+						ACK1Return(uart);
 						break;
+
 					case 12:
 						if (Munmunbot_State == STATE_Idle)
 						{
-							ACK1Return(uart);
+
 						}
+						ACK1Return(uart);
 						break;
 					case 13:
 						if (Munmunbot_State == STATE_Idle)
 						{
-							ACK1Return(uart);
+
 						}
+						ACK1Return(uart);
 						break;
+
 					case 14: /// Sethome  ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
 							Munmunbot_State = STATE_SetHome;
 							SethomeMode = SetHomeState_0;
 						}
+						ACK1Return(uart);
 						break;
 				}
 			}
@@ -1343,7 +1370,6 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 			break;
 	}
 }
-
 
 
 /* USER CODE END 4 */
