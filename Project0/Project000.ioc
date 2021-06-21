@@ -2,7 +2,7 @@
 Mcu.Family=STM32F4
 ProjectManager.MainLocation=Core/Src
 PC7.GPIOParameters=GPIO_Label
-USART2.IPParameters=VirtualMode,Parity,BaudRate
+USART2.IPParameters=VirtualMode,Parity,BaudRate,WordLength
 RCC.CortexFreq_Value=100000000
 Dma.USART2_TX.0.PeriphDataAlignment=DMA_PDATAALIGN_BYTE
 ProjectManager.KeepUserCode=true
@@ -108,6 +108,7 @@ PA2.GPIO_Label=USART_TX
 RCC.LSI_VALUE=32000
 VP_SYS_VS_Systick.Signal=SYS_VS_Systick
 PA5.GPIOParameters=GPIO_Label
+USART2.WordLength=WORDLENGTH_9B
 Dma.USART2_TX.0.Mode=DMA_NORMAL
 Dma.Request1=USART2_RX
 RCC.APB1TimFreq_Value=100000000
