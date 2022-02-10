@@ -152,7 +152,7 @@ typedef struct _ConverterUnitSystemStructure
 {
 	uint32_t PPR;
 	uint32_t PPRxQEI;
-	uint32_t RPMp;
+	uint32_t RPMp;   /// RPMp is Scaled RPM from protocol (value 255 == 10 rpm)
 
 } ConverterUnitSystemStructure;
 
@@ -287,11 +287,11 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
   ///Init Data
-  ConverterUnitSystemStructureInit(&CUSSStruc);
-  TrajectoryGenerationStructureInit(&TrjStruc, &CUSSStruc);
+  ConverterUnitSystemStructureInit(&CUSSStruc);    /// Check 1 times and fix
+  TrajectoryGenerationStructureInit(&TrjStruc, &CUSSStruc);    /// Check 1 times
 
-  VelocityControllerInit(&VelocityPIDController, &TrjStruc);
-  DisplacementControllerInit(&PositionPIDController, &TrjStruc);
+  VelocityControllerInit(&VelocityPIDController, &TrjStruc);  /// Check 1 times
+  DisplacementControllerInit(&PositionPIDController, &TrjStruc);  /// Check 1 times
 
   ///UART init
   UART2.huart = &huart2;
@@ -795,13 +795,13 @@ void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
 
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
-	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;
+	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;  // (( 0.5 rad/s^2 ) * ppr) / (2*pi)
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
 	TGSvar->Start_Theta = 0;
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
-	TGSvar->Loop_Freq = 10000;
-	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
+	TGSvar->Loop_Freq = 10000; /// ??? I think it is too high freq to control !!!
+	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);  /// 1000000 micro sec = 1 sec !!!
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
 }
@@ -826,7 +826,7 @@ void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructur
 
 void TrajectoryGenerationVelocityMaxSetting(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
-	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp))/(60.0);
+	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*(CUSSvar->RPMp)*10.0)/(60.0*255.0);  ///Convert from RPMp (255) to pulse per sec
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
 }
@@ -835,8 +835,8 @@ void TrajectoryGenerationPrepareDATA()
 {
 	if (MovingLinkMode == LMM_Set_Pos_Directly)
 	  {
-		  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(1000.0*2.0*3.141));
-		  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+		  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(65535.0));  ///pos scaled(65535) -> pulse
+		  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI) //Saturation or Overflow -> Shouldn't have this case
 		  {
 			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 		  }
@@ -856,28 +856,25 @@ void TrajectoryGenerationPrepareDATA()
 			}
 		  else
 		  {
-			Current_Station = Angularpos_InputArray[NumberOfStationPTR];
-			if (Current_Station > 10)
-			{
-				Munmunbot_State = STATE_Idle;
-				NumberOfStationPTR = 0;
-				NumberOfStationToGo = 0;
-				MovingLinkMode = LMM_Not_Set;
-				ACK2Return(&UART2);
-			}
-			else
-			{
-				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));
-				if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+				Current_Station = Angularpos_InputArray[NumberOfStationPTR];
+				if (Current_Station > 10)
 				{
-					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+					NumberOfStationPTR += 1;
+					NumberOfStationToGo -= 1;
 				}
-				TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
-				Munmunbot_State = STATE_Calculation;
+				else
+				{
+					TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));  // (StationPos == Degree) -> Position(Pulse)
+					if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+					{
+						TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+					}
+					TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+					Munmunbot_State = STATE_Calculation;
 
-				NumberOfStationPTR += 1;
-				NumberOfStationToGo -= 1;
-			}
+					NumberOfStationPTR += 1;
+					NumberOfStationToGo -= 1;
+				}
 
 		  }
 	  }
@@ -1217,7 +1214,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 				}
 				break;
 
-			case PP_CheckSum:
+		case PP_CheckSum:
 			{
 				CheckSum = (~CheckSum) & 0xff;
 				if (CheckSum == dataIn)
@@ -1295,13 +1292,15 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 						if (Munmunbot_State == STATE_Idle)
 						{
 							Munmunbot_State = STATE_PrepareDATA;
+							NumberOfStationPTR = 0;
 							ACK1Return(uart);
 						}
 						else
 						{
 							{
 								uint8_t temp[] =
-								{0x58 ,  0x75 , 70,  110};
+								{0x58 ,  0x75 ,
+										70,  110};   /// ACK1 + ACK2
 								UARTTxWrite(uart, temp, 4);
 							}
 						}
@@ -1311,7 +1310,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 
 						{
 							uint8_t temp[] =
-							{0x58 ,  0x75 , 153,  0b0,  0b0, 0b0};
+							{0x58 ,  0x75 ,
+									153,  0b0,  0b0, 0b0};  // ACK1 + Mode9 Return
 							uint8_t Shift = 2;
 							DataForReturn = Current_Station&(0xff);
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
@@ -1325,9 +1325,10 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 					case 10: /// Return Angular Position  ##Complete##
 						{
 							uint8_t temp[] =
-							{0x58 , 0x75 ,154, 0b0,  0b0, 0b0};
+							{0x58 , 0x75 ,
+									154, 0b0,  0b0, 0b0}; // ACK1 + Mode10 Return
 							uint8_t Shift = 2;
-							DataForReturn = (PositionPIDController.OutputFeedback*2*3.141*1000)/(CUSSStruc.PPRxQEI);
+							DataForReturn = (PositionPIDController.OutputFeedback*65535.0)/(CUSSStruc.PPRxQEI); //pulse -> 65535 Scaling
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
 							temp[2+Shift] = (DataForReturn)&(0xff);
 							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
@@ -1341,7 +1342,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								uint8_t temp[] =
 								{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
 								uint8_t Shift = 2;
-								DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);
+								DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60.0*255.0)/(CUSSStruc.PPRxQEI*10.0); ///fix pps to RPM(Scale 255)
 								temp[1+Shift] = (DataForReturn>>8)&(0xff);
 								temp[2+Shift] = (DataForReturn)&(0xff);
 								temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
@@ -1379,6 +1380,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 			parameter_ptr = 0;
 			Data_HAck = 0;
 			CheckSum = 0;
+
 			Munmunbot_Protocol_State = PP_STARTandMode;
 			break;
 			}
