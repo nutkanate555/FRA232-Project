@@ -373,6 +373,7 @@ int main(void)
 	   					Munmunbot_State = STATE_End_Effector_Working;
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   				  }
+	   				 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
 	   				 Moving_Link_Task_Flag = 0;
 	   			  }
 
