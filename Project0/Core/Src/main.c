@@ -819,7 +819,7 @@ void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructur
 {
 	VCvar->Kp = 5;
 	VCvar->Ki = 0.2;
-	VCvar->Kd = 0.1;
+	VCvar->Kd = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
@@ -1136,7 +1136,6 @@ void DEBUG_UART(UARTStucrture *uart)
 	UARTTxWrite(uart, temp, 2);
 	}
 }
-
 
 void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 {
