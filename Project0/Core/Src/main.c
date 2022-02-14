@@ -1267,7 +1267,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 					case 6:  /// Set 1 Station ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
-							Angularpos_InputArray[0] = parameter[0];
+//							Angularpos_InputArray[0] = parameter[0];
+							Angularpos_InputArray[0] = parameter[2];    //150 0x00 0x0A Checksum
 							MovingLinkMode = LMM_Set_Goal_1_Station;
 							NumberOfStationToGo = 1;
 						}
