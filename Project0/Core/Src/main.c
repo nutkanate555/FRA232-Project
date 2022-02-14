@@ -174,7 +174,7 @@ typedef struct _PIDStructure
 ///Station Setting
 uint16_t StationPos[10] = {10,20,30,40,50,60,70,80,90,100};
 
-uint8_t Angularpos_InputArray[256] = {0};
+uint8_t Angularpos_InputArray[15] = {0};
 uint16_t Angularpos_InputNumber = 0;
 
 typedef enum
@@ -1196,7 +1196,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 
 		case PP_Frame3_Data_1:
 				CheckSum += dataIn;
-				if (n_station > 2)
+				if (n_station >= 2)
 				{
 					parameter[parameter_ptr] = dataIn&0b1111;
 					parameter_ptr += 1;
