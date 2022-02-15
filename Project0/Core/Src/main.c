@@ -529,7 +529,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 8191;
+  htim1.Init.Period = 24575;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -786,18 +786,7 @@ void EncoderVelocityAndPosition_Update()
 	EncoderTimeDiff = EncoderNowTimestamp - EncoderLastTimestamp;
 	EncoderPositionDiff = EncoderNowPosition - EncoderLastPosition;
 
-	//compensate overflow and underflow
-	if (EncoderPositionDiff >= MAX_SUBPOSITION_OVERFLOW)
-	{
-		EncoderPositionDiff -= MAX_ENCODER_PERIOD;
-	}
-	else if (-EncoderPositionDiff >= MAX_SUBPOSITION_OVERFLOW)
-	{
-		EncoderPositionDiff += MAX_ENCODER_PERIOD;
-	}
-
 	//Update Position and time
-
 	EncoderLastPosition = EncoderNowPosition;
 	EncoderLastTimestamp = EncoderNowTimestamp;
 
@@ -812,7 +801,7 @@ void EncoderVelocityAndPosition_Update()
 
 void Encoder_SetHome_Position()
 {
-	HTIM_ENCODER.Instance->CNT = 0;
+	HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -839,7 +828,7 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 {
 	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
-	TGSvar->Start_Theta = 0;
+	TGSvar->Start_Theta = CUSSStruc.PPRxQEI;  /// PPRxQEI == 0 degree
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
 	TGSvar->Loop_Freq = 10000;
@@ -882,7 +871,9 @@ void TrajectoryGenerationPrepareDATA()
 		  {
 			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 		  }
-		  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+		  TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
+
+		  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
 		  Munmunbot_State = STATE_Calculation;
 	  }
 
@@ -911,6 +902,8 @@ void TrajectoryGenerationPrepareDATA()
 				{
 					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 				}
+				TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
+
 				TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
 				Munmunbot_State = STATE_Calculation;
 
@@ -1365,13 +1358,12 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							uint8_t temp[] =
 							{0x58 , 0x75 ,154, 0b0,  0b0, 0b0};
 							uint8_t Shift = 2;
-							DataForReturn = (PositionPIDController.OutputFeedback*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
+							DataForReturn = ((((int)PositionPIDController.OutputFeedback) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
 							temp[2+Shift] = (DataForReturn)&(0xff);
 							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
 							UARTTxWrite(uart, temp, 4+Shift);
 						}
-
 						break;
 
 					case 11: /// Return Angular Velocity Max  ##Complete##
