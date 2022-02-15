@@ -346,11 +346,12 @@ int main(void)
 	   			  PIDController2in1();
 	   			  Plant_input = PositionPIDController.ControllerOutput;
 	   			  DCMotorStruc.PWMOut = abs(Plant_input);
-	   			  if (DCMotorStruc.PWMOut > 10000)
+	   			  if (DCMotorStruc.PWMOut > 10000)   /// Saturation Output
 	   			  {
 	   				 DCMotorStruc.PWMOut = 10000;
 	   			  }
-	   			  if (Plant_input >= 0)
+
+	   			  if (Plant_input >= 0) /// Setting DIR
 	   			  {
 	   				  DCMotorStruc.DIR = 1;
 	   			  }
@@ -359,7 +360,8 @@ int main(void)
 	   				  DCMotorStruc.DIR = 0;
 	   			  }
 	   			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
-	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut);
+
+	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Seting PWM Pin
 	   			  TrjStruc.Loop_Timestamp = micros();
 
 	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 1) &&
@@ -372,6 +374,7 @@ int main(void)
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   					ACK2Return(&UART2);
 	   				  }
+
 	   				  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
 	   				  {
 	   					Munmunbot_State = STATE_End_Effector_Working;
@@ -874,8 +877,8 @@ void TrajectoryGenerationPrepareDATA()
 {
 	if (MovingLinkMode == LMM_Set_Pos_Directly)
 	  {
-		  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.141));
-		  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+		  TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
+		  if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
 		  {
 			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 		  }
@@ -896,19 +899,19 @@ void TrajectoryGenerationPrepareDATA()
 		  else
 		  {
 			Current_Station = Angularpos_InputArray[NumberOfStationPTR];
-			if (Current_Station > 10)
+			if (Current_Station > 10)   //pass input
 			{
 				NumberOfStationPTR += 1;
 				NumberOfStationToGo -= 1;
 			}
 			else
 			{
-				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));
-				if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)
+				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));   ///fix this if change algorithm
+				if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)  ///wrap input into 1 revolute. ///shouldn't happen
 				{
 					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 				}
-				TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta; //// No implement
+				TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
 				Munmunbot_State = STATE_Calculation;
 
 				NumberOfStationPTR += 1;
@@ -917,7 +920,7 @@ void TrajectoryGenerationPrepareDATA()
 
 		  }
 	  }
-	  else
+	  else  ///shouldn't happen
 	  {
 		MovingLinkMode = LMM_Not_Set;
 		Munmunbot_State = STATE_Idle;
@@ -938,6 +941,7 @@ void TrajectoryGenerationCalculation()
 		 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting;
 		 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta;
 	  }
+
 	  if (TrjStruc.Abs_Delta_Theta < TrjStruc.Theta_min_for_LSPB)   ///Triangular mode0
 	  {
 		 TrjStruc.BlendTimeTriangular = sqrt(TrjStruc.Abs_Delta_Theta/TrjStruc.AngularAccerationMax_Setting);
@@ -946,7 +950,6 @@ void TrajectoryGenerationCalculation()
 		 TrjStruc.Mode = 0;
 		 TrjStruc.Submode = 0;
 	  }
-
 	  else if (TrjStruc.Abs_Delta_Theta >= TrjStruc.Theta_min_for_LSPB)  ///LSPB mode1
 	  {
 		  TrjStruc.LinearTimeLSPB = (TrjStruc.Abs_Delta_Theta-TrjStruc.Theta_min_for_LSPB)/TrjStruc.AngularVelocityMax_Setting;
@@ -1321,12 +1324,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 								Angularpos_InputArray[i] = parameter[i];
 							}
 							NumberOfStationToGo = n_station_mem;
-							ACK1Return(uart);
 						}
-						else
-						{
-							ACK1Return(uart);
-						}
+						ACK1Return(uart);
 						break;
 					case 8:  /// Go go ##Complete##  ///But must implement return ACK after it's done
 						if (Munmunbot_State == STATE_Idle)
