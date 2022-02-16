@@ -343,7 +343,7 @@ int main(void)
 	   			  // GEN Trajectory
 	   			  TrajectoryGenerationProcess();
 	   			  EncoderVelocityAndPosition_Update();
-	   			  PIDController2in1();
+	   			  PIDController2in1();  ///use only position
 	   			  Plant_input = PositionPIDController.ControllerOutput;
 	   			  DCMotorStruc.PWMOut = abs(Plant_input);
 	   			  if (DCMotorStruc.PWMOut > 10000)   /// Saturation Output
@@ -361,7 +361,9 @@ int main(void)
 	   			  }
 	   			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
 
-	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Seting PWM Pin
+	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;  /// for testing
+
+	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
 	   			  TrjStruc.Loop_Timestamp = micros();
 
 	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 1) &&
@@ -371,6 +373,7 @@ int main(void)
 	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
 	   				  {
 	   					Munmunbot_State = STATE_Idle;
+	   					MovingLinkMode = LMM_Not_Set;
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   					ACK2Return(&UART2);
 	   				  }
@@ -389,7 +392,7 @@ int main(void)
 	  		  break;
 	  	  case STATE_End_Effector_Working:
 	  		  ///I2C implement
-
+	  		  Munmunbot_State = STATE_PrepareDATA; /// for testing
 
 
 	  		  break;
@@ -873,8 +876,17 @@ void TrajectoryGenerationPrepareDATA()
 		  }
 		  TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
 
-		  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
-		  Munmunbot_State = STATE_Calculation;
+		  if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
+		  {
+			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
+			  Munmunbot_State = STATE_Calculation;
+		  }
+		  else
+		  {
+			Munmunbot_State = STATE_Idle;
+			MovingLinkMode = LMM_Not_Set;
+			ACK2Return(&UART2);
+		}
 	  }
 
 	else if (MovingLinkMode == LMM_Set_Goal_1_Station || MovingLinkMode == LMM_Set_Goal_n_Station )
@@ -903,14 +915,20 @@ void TrajectoryGenerationPrepareDATA()
 					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
 				}
 				TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
-
-				TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
-				Munmunbot_State = STATE_Calculation;
-
-				NumberOfStationPTR += 1;
-				NumberOfStationToGo -= 1;
+				if (TrjStruc.Desire_Theta == TrjStruc.Start_Theta)
+				{
+					NumberOfStationPTR += 1;
+					NumberOfStationToGo -= 1;
+					Munmunbot_State = STATE_End_Effector_Working;
+				}
+				else
+				{
+					TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
+					Munmunbot_State = STATE_Calculation;
+					NumberOfStationPTR += 1;
+					NumberOfStationToGo -= 1;
+				}
 			}
-
 		  }
 	  }
 	  else  ///shouldn't happen
