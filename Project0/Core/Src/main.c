@@ -195,6 +195,10 @@ uint8_t NumberOfStationPTR = 0;
 uint32_t Plant_input = 0;
 uint8_t Moving_Link_Task_Flag = 0;
 
+uint8_t GripperEnable = 1;
+uint8_t GripperState = 0;
+uint64_t Timestamp_Gripper = 0;
+
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
 
@@ -361,13 +365,11 @@ int main(void)
 	   			  }
 	   			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
 
-	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;  /// for testing
-
 	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
 	   			  TrjStruc.Loop_Timestamp = micros();
 
-	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 1) &&
-	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 1) &&
+	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
+	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
 						  (Moving_Link_Task_Flag == 1))
 	   			  {
 	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
@@ -381,6 +383,7 @@ int main(void)
 	   				  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
 	   				  {
 	   					Munmunbot_State = STATE_End_Effector_Working;
+	   					GripperState = 0;
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   				  }
 	   				 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
@@ -392,9 +395,28 @@ int main(void)
 	  		  break;
 	  	  case STATE_End_Effector_Working:
 	  		  ///I2C implement
-	  		  Munmunbot_State = STATE_PrepareDATA; /// for testing
+	  		  if(GripperEnable == 1)
+	  		  {
+	  			if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 0))
+	  			{
+	  				{
+	  					uint8_t temp[1] = {0x45};
+	  					HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+	  				}
+	  				GripperState = 1;
+	  				Timestamp_Gripper = micros();
+	  			}
+	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState == 1))
+	  			{
+	  				GripperState = 0;
+	  				Munmunbot_State = STATE_PrepareDATA;
+	  			}
+	  		  }
 
-
+	  		  else if(GripperEnable == 0)
+			  {
+		  		 Munmunbot_State = STATE_PrepareDATA;
+			  }
 	  		  break;
 
 	  	  case STATE_SetHome:
@@ -493,7 +515,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.ClockSpeed = 10000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -1397,17 +1419,17 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							}
 						break;
 
-					case 12:
+					case 12:  //Enable Gripper
 						if (Munmunbot_State == STATE_Idle)
 						{
-
+							GripperEnable = 1;
 						}
 						ACK1Return(uart);
 						break;
-					case 13:
+					case 13: //Disable Gripper
 						if (Munmunbot_State == STATE_Idle)
 						{
-
+							GripperEnable = 0;
 						}
 						ACK1Return(uart);
 						break;
