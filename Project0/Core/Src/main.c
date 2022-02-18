@@ -1483,10 +1483,6 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 	}
 }
 
-void Sethome_Command()
-{
-
-}
 
 /* USER CODE END 4 */
 
