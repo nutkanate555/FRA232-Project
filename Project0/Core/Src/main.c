@@ -100,10 +100,12 @@ typedef enum
 	STATE_Calculation,
 	STATE_Link_Moving,
 	STATE_End_Effector_Working,
-	STATE_SetHome
+	STATE_SetHome,
+	STATE_PreSetHome
 } Robot_STATE;
 
-Robot_STATE Munmunbot_State = STATE_Disconnected;
+//Robot_STATE Munmunbot_State = STATE_Disconnected;
+Robot_STATE Munmunbot_State = STATE_PreSetHome;
 
 typedef enum
 {
@@ -243,6 +245,7 @@ void Encoder_SetHome_Position();
 
 void ACK1Return(UARTStucrture *uart);
 void ACK2Return(UARTStucrture *uart);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -307,7 +310,6 @@ int main(void)
   UART2.TxLen = 255;
   UARTInit(&UART2);
   UARTResetStart(&UART2);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -329,6 +331,7 @@ int main(void)
 	  {
 	  	  case STATE_Disconnected:
 	  		  break;
+
 	  	  case STATE_Idle:
 		  	  break;
 
@@ -391,8 +394,8 @@ int main(void)
 	   			  }
 
 	   		  }
-
 	  		  break;
+
 	  	  case STATE_End_Effector_Working:
 	  		  ///I2C implement
 	  		  if(GripperEnable == 1)
@@ -412,7 +415,6 @@ int main(void)
 	  				Munmunbot_State = STATE_PrepareDATA;
 	  			}
 	  		  }
-
 	  		  else if(GripperEnable == 0)
 			  {
 		  		 Munmunbot_State = STATE_PrepareDATA;
@@ -420,7 +422,6 @@ int main(void)
 	  		  break;
 
 	  	  case STATE_SetHome:
-
 	  		  switch (SethomeMode)
 	  		  {
 				case SetHomeState_0:
@@ -449,6 +450,33 @@ int main(void)
 				    break;
 			  }
 
+	  		case STATE_PreSetHome:
+				  switch (SethomeMode)
+				  {
+					case SetHomeState_0:
+						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
+						SethomeMode = SetHomeState_1;
+
+						break;
+					case SetHomeState_1:
+						if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 1)
+						{
+							HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+							SethomeMode = SetHomeState_2;
+						}
+						break;
+					case SetHomeState_2:
+						if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 0)
+						{
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+							Encoder_SetHome_Position();
+							SethomeMode = SetHomeState_0;
+							Munmunbot_State = STATE_Disconnected;
+						}
+						break;
+				  }
 	  }
 
   }
@@ -1455,6 +1483,10 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 	}
 }
 
+void Sethome_Command()
+{
+
+}
 
 /* USER CODE END 4 */
 
