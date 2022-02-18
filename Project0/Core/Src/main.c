@@ -250,6 +250,7 @@ void PID_Reset();
 
 void LAMP_ON(uint8_t lampnumber);
 
+void Emergency_switch_trigger();
 
 /* USER CODE END PFP */
 
@@ -831,13 +832,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : Emergency_Switch_Signal_Pin */
   GPIO_InitStruct.Pin = Emergency_Switch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LimitSwitch_Signal_Pin */
   GPIO_InitStruct.Pin = LimitSwitch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(LimitSwitch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Motor_DIR_Pin */
@@ -1546,6 +1547,19 @@ void LAMP_ON(uint8_t lampnumber)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+	}
+}
+
+void Emergency_switch_trigger()
+{
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 1)
+	{
+		Munmunbot_State = STATE_Disconnected;
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+		TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+		Moving_Link_Task_Flag = 0;
+		PID_Reset();
 	}
 }
 

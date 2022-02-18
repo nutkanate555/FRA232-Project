@@ -27,23 +27,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  00020090  2**0
                   CONTENTS, READONLY
- 12 .debug_info   00010dea  00000000  00000000  000200c0  2**0
+ 12 .debug_info   00010dfd  00000000  00000000  000200c0  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 0000201f  00000000  00000000  00030eaa  2**0
+ 13 .debug_abbrev 0000201f  00000000  00000000  00030ebd  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00000ff0  00000000  00000000  00032ed0  2**3
+ 14 .debug_aranges 00000ff8  00000000  00000000  00032ee0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_ranges 00000f60  00000000  00000000  00033ec0  2**3
+ 15 .debug_ranges 00000f68  00000000  00000000  00033ed8  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  00016f59  00000000  00000000  00034e20  2**0
+ 16 .debug_macro  00016f59  00000000  00000000  00034e40  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00011883  00000000  00000000  0004bd79  2**0
+ 17 .debug_line   000118b0  00000000  00000000  0004bd99  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    00091bf4  00000000  00000000  0005d5fc  2**0
+ 18 .debug_str    00091c0d  00000000  00000000  0005d649  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000053  00000000  00000000  000ef1f0  2**0
+ 19 .comment      00000053  00000000  00000000  000ef256  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000049a0  00000000  00000000  000ef244  2**2
+ 20 .debug_frame  000049bc  00000000  00000000  000ef2ac  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -2932,8 +2932,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
  8001a2e:	2300      	movs	r3, #0
  8001a30:	61bb      	str	r3, [r7, #24]
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
- 8001a32:	2300      	movs	r3, #0
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 8001a32:	2302      	movs	r3, #2
  8001a34:	61fb      	str	r3, [r7, #28]
   HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
  8001a36:	f107 0314 	add.w	r3, r7, #20
@@ -2948,8 +2948,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
  8001a46:	2300      	movs	r3, #0
  8001a48:	61bb      	str	r3, [r7, #24]
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
- 8001a4a:	2300      	movs	r3, #0
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 8001a4a:	2302      	movs	r3, #2
  8001a4c:	61fb      	str	r3, [r7, #28]
   HAL_GPIO_Init(LimitSwitch_Signal_GPIO_Port, &GPIO_InitStruct);
  8001a4e:	f107 0314 	add.w	r3, r7, #20
