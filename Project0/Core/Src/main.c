@@ -246,6 +246,11 @@ void Encoder_SetHome_Position();
 void ACK1Return(UARTStucrture *uart);
 void ACK2Return(UARTStucrture *uart);
 
+void PID_Reset();
+
+void LAMP_ON(uint8_t lampnumber);
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -330,21 +335,26 @@ int main(void)
 	  switch (Munmunbot_State)
 	  {
 	  	  case STATE_Disconnected:
+	  		  LAMP_ON(2);
 	  		  break;
 
 	  	  case STATE_Idle:
+	  		  LAMP_ON(2);
 		  	  break;
 
 	  	  case STATE_PrepareDATA:
+	  		  LAMP_ON(3);
 	  		  TrajectoryGenerationPrepareDATA();
 		  	  break;
 
 	  	  case STATE_Calculation:
+	  		  LAMP_ON(3);
 	  		  TrajectoryGenerationCalculation();
 	  		  Munmunbot_State = STATE_Link_Moving;
 	  		  break;
 
 	   	  case STATE_Link_Moving:
+	   		  LAMP_ON(3);
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
 	   			  // GEN Trajectory
@@ -391,12 +401,14 @@ int main(void)
 	   				  }
 	   				 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
 	   				 Moving_Link_Task_Flag = 0;
+	   				 PID_Reset();
 	   			  }
 
 	   		  }
 	  		  break;
 
 	  	  case STATE_End_Effector_Working:
+	  		  LAMP_ON(3);
 	  		  ///I2C implement
 	  		  if(GripperEnable == 1)
 	  		  {
@@ -422,6 +434,7 @@ int main(void)
 	  		  break;
 
 	  	  case STATE_SetHome:
+	  		  LAMP_ON(3);
 	  		  switch (SethomeMode)
 	  		  {
 				case SetHomeState_0:
@@ -451,6 +464,7 @@ int main(void)
 			  }
 
 	  		case STATE_PreSetHome:
+	  			  LAMP_ON(1);
 				  switch (SethomeMode)
 				  {
 					case SetHomeState_0:
@@ -786,7 +800,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, Relay_ch_2_Pin|Relay_ch_3_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Motor_DIR_GPIO_Port, Motor_DIR_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Relay_ch_4_GPIO_Port, Relay_ch_4_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -794,12 +814,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin Relay_ch_4_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|Relay_ch_4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Relay_ch_2_Pin Relay_ch_3_Pin */
+  GPIO_InitStruct.Pin = Relay_ch_2_Pin|Relay_ch_3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Emergency_Switch_Signal_Pin */
+  GPIO_InitStruct.Pin = Emergency_Switch_Signal_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LimitSwitch_Signal_Pin */
   GPIO_InitStruct.Pin = LimitSwitch_Signal_Pin;
@@ -813,6 +846,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Motor_DIR_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
@@ -1480,6 +1517,35 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 			Munmunbot_Protocol_State = PP_STARTandMode;
 			break;
 			}
+	}
+}
+
+void PID_Reset()
+{
+	PositionPIDController.PreviousError = 0;
+	PositionPIDController.Integral_Value = 0;
+	PositionPIDController.ControllerOutput = 0;
+}
+
+void LAMP_ON(uint8_t lampnumber)
+{
+	if (lampnumber == 1)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
+	}
+	else if (lampnumber == 2)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
+	}
+	else if (lampnumber == 3)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
 	}
 }
 

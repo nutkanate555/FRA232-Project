@@ -13,3 +13,4 @@ stm32f4xx_it.c:237:6:TIM2_IRQHandler	8	static
 stm32f4xx_it.c:251:6:I2C1_EV_IRQHandler	8	static
 stm32f4xx_it.c:265:6:I2C1_ER_IRQHandler	8	static
 stm32f4xx_it.c:279:6:USART2_IRQHandler	8	static
+stm32f4xx_it.c:293:6:EXTI15_10_IRQHandler	8	static
