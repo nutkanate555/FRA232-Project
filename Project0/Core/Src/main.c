@@ -337,21 +337,25 @@ int main(void)
 	  {
 	  	  case STATE_Disconnected:
 	  		  LAMP_ON(2);
+	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  	  case STATE_Idle:
 	  		  LAMP_ON(2);
+	  		  Emergency_switch_trigger();
 		  	  break;
 
 	  	  case STATE_PrepareDATA:
 	  		  LAMP_ON(3);
 	  		  TrajectoryGenerationPrepareDATA();
+	  		  Emergency_switch_trigger();
 		  	  break;
 
 	  	  case STATE_Calculation:
 	  		  LAMP_ON(3);
 	  		  TrajectoryGenerationCalculation();
 	  		  Munmunbot_State = STATE_Link_Moving;
+	  		  Emergency_switch_trigger();
 	  		  break;
 
 	   	  case STATE_Link_Moving:
@@ -404,8 +408,8 @@ int main(void)
 	   				 Moving_Link_Task_Flag = 0;
 	   				 PID_Reset();
 	   			  }
-
 	   		  }
+	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  	  case STATE_End_Effector_Working:
@@ -432,6 +436,7 @@ int main(void)
 			  {
 		  		 Munmunbot_State = STATE_PrepareDATA;
 			  }
+	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  	  case STATE_SetHome:
@@ -463,6 +468,8 @@ int main(void)
 					}
 				    break;
 			  }
+	  		  Emergency_switch_trigger();
+	  		  break;
 
 	  		case STATE_PreSetHome:
 	  			  LAMP_ON(1);
@@ -492,6 +499,8 @@ int main(void)
 						}
 						break;
 				  }
+				  Emergency_switch_trigger();
+				  break;
 	  }
 
   }
