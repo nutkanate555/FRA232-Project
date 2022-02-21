@@ -453,7 +453,7 @@ int main(void)
 					if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 1)
 					{
 						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
-						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
 						SethomeMode = SetHomeState_2;
 					}
 					break;
@@ -841,13 +841,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : Emergency_Switch_Signal_Pin */
   GPIO_InitStruct.Pin = Emergency_Switch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LimitSwitch_Signal_Pin */
   GPIO_InitStruct.Pin = LimitSwitch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(LimitSwitch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Motor_DIR_Pin */
@@ -1561,7 +1561,7 @@ void LAMP_ON(uint8_t lampnumber)
 
 void Emergency_switch_trigger()
 {
-	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 1)
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 0)
 	{
 		Munmunbot_State = STATE_Disconnected;
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
