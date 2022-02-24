@@ -253,6 +253,7 @@ void LAMP_ON(uint8_t lampnumber);
 void Emergency_switch_trigger();
 
 void Controlling_the_LINK();
+void SETHOME_StateMachine_Function();
 
 /* USER CODE END PFP */
 
@@ -479,6 +480,7 @@ int main(void)
 									  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
 									  (Moving_Link_Task_Flag == 1))
 							  {
+								    SethomeMode = SetHomeState_0;
 									Munmunbot_State = STATE_Idle;
 									MovingLinkMode = LMM_Not_Set;
 									__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
@@ -1610,7 +1612,10 @@ void Controlling_the_LINK()
 
 	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
 	  TrjStruc.Loop_Timestamp = micros();
+}
 
+void SETHOME_StateMachine_Function()
+{
 }
 
 /* USER CODE END 4 */
