@@ -472,32 +472,20 @@ int main(void)
 
 	  		case STATE_PreSetHome:
 	  			  LAMP_ON(1);
+
 				  switch (SethomeMode)
 				  {
 					case SetHomeState_0:
 						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
 						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
 						SethomeMode = SetHomeState_1;
-
 						break;
 					case SetHomeState_1:
-						if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 1)
-						{
-							HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
-							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
-							SethomeMode = SetHomeState_2;
-						}
 						break;
 					case SetHomeState_2:
-						if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 0)
-						{
-							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-							Encoder_SetHome_Position();
-							SethomeMode = SetHomeState_0;
-							Munmunbot_State = STATE_Disconnected;
-						}
 						break;
 				  }
+
 				  Emergency_switch_trigger();
 				  break;
 	  }
@@ -921,7 +909,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index
 	{
-
+    	if ((Munmunbot_State == STATE_PreSetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	{
+    		if (SethomeMode == SetHomeState_1)
+    		{
+    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
+    			SethomeMode = SetHomeState_2;
+    		}
+    	}
 	}
 }
 
