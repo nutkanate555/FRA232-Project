@@ -111,7 +111,8 @@ typedef enum
 {
 	SetHomeState_0,
 	SetHomeState_1,
-	SetHomeState_2
+	SetHomeState_2,
+	SetHomeState_3
 } SetHome_STATE;
 
 SetHome_STATE SethomeMode = SetHomeState_0;
@@ -251,6 +252,8 @@ void PID_Reset();
 void LAMP_ON(uint8_t lampnumber);
 void Emergency_switch_trigger();
 
+void Controlling_the_LINK();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -361,29 +364,7 @@ int main(void)
 	   		  LAMP_ON(3);
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
-	   			  // GEN Trajectory
-	   			  TrajectoryGenerationProcess();
-	   			  EncoderVelocityAndPosition_Update();
-	   			  PIDController2in1();  ///use only position
-	   			  Plant_input = PositionPIDController.ControllerOutput;
-	   			  DCMotorStruc.PWMOut = abs(Plant_input);
-	   			  if (DCMotorStruc.PWMOut > 10000)   /// Saturation Output
-	   			  {
-	   				 DCMotorStruc.PWMOut = 10000;
-	   			  }
-
-	   			  if (Plant_input >= 0) /// Setting DIR
-	   			  {
-	   				  DCMotorStruc.DIR = 1;
-	   			  }
-	   			  else if (Plant_input < 0)
-	   			  {
-	   				  DCMotorStruc.DIR = 0;
-	   			  }
-	   			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
-
-	   			  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
-	   			  TrjStruc.Loop_Timestamp = micros();
+	   			  Controlling_the_LINK();
 
 	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
 	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
@@ -483,9 +464,31 @@ int main(void)
 					case SetHomeState_1:
 						break;
 					case SetHomeState_2:
+						Angularpos_InputNumber = 0;
+						MovingLinkMode = LMM_Set_Pos_Directly;
+						TrajectoryGenerationPrepareDATA();
+					    TrajectoryGenerationCalculation();
+					    SethomeMode = SetHomeState_3;
+						break;
+					case SetHomeState_3:
+						  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
+						  {
+							  Controlling_the_LINK();
+
+							  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
+									  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
+									  (Moving_Link_Task_Flag == 1))
+							  {
+									Munmunbot_State = STATE_Idle;
+									MovingLinkMode = LMM_Not_Set;
+									__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+									TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+									Moving_Link_Task_Flag = 0;
+									PID_Reset();
+							  }
+						  }
 						break;
 				  }
-
 				  Emergency_switch_trigger();
 				  break;
 	  }
@@ -860,7 +863,7 @@ static void MX_GPIO_Init(void)
 
 #define  HTIM_ENCODER htim1
 #define  MAX_SUBPOSITION_OVERFLOW 12288
-#define  MAX_ENCODER_PERIOD 24575
+#define  MAX_ENCODER_PERIOD 24576
 
 void EncoderVelocityAndPosition_Update()
 {
@@ -915,6 +918,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		{
     			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
     			SethomeMode = SetHomeState_2;
+    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
     		}
     	}
 	}
@@ -1580,6 +1585,33 @@ void Emergency_switch_trigger()
 	}
 }
 
+void Controlling_the_LINK()
+{
+	  // GEN Trajectory
+	  TrajectoryGenerationProcess();
+	  EncoderVelocityAndPosition_Update();
+	  PIDController2in1();  ///use only position
+	  Plant_input = PositionPIDController.ControllerOutput;
+	  DCMotorStruc.PWMOut = abs(Plant_input);
+	  if (DCMotorStruc.PWMOut > 10000)   /// Saturation Output
+	  {
+		 DCMotorStruc.PWMOut = 10000;
+	  }
+
+	  if (Plant_input >= 0) /// Setting DIR
+	  {
+		  DCMotorStruc.DIR = 1;
+	  }
+	  else if (Plant_input < 0)
+	  {
+		  DCMotorStruc.DIR = 0;
+	  }
+	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
+
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
+	  TrjStruc.Loop_Timestamp = micros();
+
+}
 
 /* USER CODE END 4 */
 
