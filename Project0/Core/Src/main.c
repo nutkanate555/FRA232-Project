@@ -850,7 +850,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index
+    if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line15 -> index  ///13 for test
 	{
     	if ((Munmunbot_State == STATE_PreSetHome) || (Munmunbot_State == STATE_PreSetHome))
     	{
@@ -1568,6 +1568,8 @@ void SETHOME_StateMachine_Function()
 			MovingLinkMode = LMM_Set_Pos_Directly;
 			TrajectoryGenerationPrepareDATA();
 			TrajectoryGenerationCalculation();
+			Munmunbot_State = STATE_SetHome;        ///BRUTE FORCE ALGORITHM
+			MovingLinkMode = LMM_Set_Pos_Directly;  ///BRUTE FORCE ALGORITHM
 			SethomeMode = SetHomeState_3;
 			break;
 		case SetHomeState_3:
@@ -1581,6 +1583,7 @@ void SETHOME_StateMachine_Function()
 			  {
 					SethomeMode = SetHomeState_0;
 					Munmunbot_State = STATE_Idle;
+					Munmunbot_State = 99;
 					MovingLinkMode = LMM_Not_Set;
 					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 					TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
