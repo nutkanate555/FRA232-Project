@@ -919,9 +919,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_9) // If The INT Source Is EXTI Line9 (A9 Pin)
+    if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line13 -> pin13?
     {
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8); // Toggle The Output (LED) Pin
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Toggle The Output (LED) Pin
     }
 }
 
