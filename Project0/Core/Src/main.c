@@ -249,7 +249,6 @@ void ACK2Return(UARTStucrture *uart);
 void PID_Reset();
 
 void LAMP_ON(uint8_t lampnumber);
-
 void Emergency_switch_trigger();
 
 /* USER CODE END PFP */
@@ -872,8 +871,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 #define  HTIM_ENCODER htim1
-#define  MAX_SUBPOSITION_OVERFLOW 4096
-#define  MAX_ENCODER_PERIOD 8192
+#define  MAX_SUBPOSITION_OVERFLOW 12288
+#define  MAX_ENCODER_PERIOD 24575
 
 void EncoderVelocityAndPosition_Update()
 {
@@ -916,6 +915,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		_micros += 4294967295;
 	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if(GPIO_Pin == GPIO_PIN_9) // If The INT Source Is EXTI Line9 (A9 Pin)
+    {
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8); // Toggle The Output (LED) Pin
+    }
 }
 
 uint64_t micros()
