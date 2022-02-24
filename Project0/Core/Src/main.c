@@ -422,77 +422,15 @@ int main(void)
 
 	  	  case STATE_SetHome:
 	  		  LAMP_ON(3);
-	  		  switch (SethomeMode)
-	  		  {
-				case SetHomeState_0:
-					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-					SethomeMode = SetHomeState_1;
-
-					break;
-				case SetHomeState_1:
-					if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 1)
-					{
-						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
-						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-						SethomeMode = SetHomeState_2;
-					}
-					break;
-				case SetHomeState_2:
-					if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == 0)
-					{
-						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-						Encoder_SetHome_Position();
-						SethomeMode = SetHomeState_0;
-						Munmunbot_State = STATE_Idle;
-						ACK1Return(&UART2);
-					}
-				    break;
-			  }
+	  		  SETHOME_StateMachine_Function();
 	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  		case STATE_PreSetHome:
-	  			  LAMP_ON(1);
-
-				  switch (SethomeMode)
-				  {
-					case SetHomeState_0:
-						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-						__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-						SethomeMode = SetHomeState_1;
-						break;
-					case SetHomeState_1:
-						break;
-					case SetHomeState_2:
-						Angularpos_InputNumber = 0;
-						MovingLinkMode = LMM_Set_Pos_Directly;
-						TrajectoryGenerationPrepareDATA();
-					    TrajectoryGenerationCalculation();
-					    SethomeMode = SetHomeState_3;
-						break;
-					case SetHomeState_3:
-						  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
-						  {
-							  Controlling_the_LINK();
-
-							  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
-									  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
-									  (Moving_Link_Task_Flag == 1))
-							  {
-								    SethomeMode = SetHomeState_0;
-									Munmunbot_State = STATE_Idle;
-									MovingLinkMode = LMM_Not_Set;
-									__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-									TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-									Moving_Link_Task_Flag = 0;
-									PID_Reset();
-							  }
-						  }
-						break;
-				  }
-				  Emergency_switch_trigger();
-				  break;
+			  LAMP_ON(1);
+			  SETHOME_StateMachine_Function();
+			  Emergency_switch_trigger();
+			  break;
 	  }
 
   }
@@ -1616,6 +1554,43 @@ void Controlling_the_LINK()
 
 void SETHOME_StateMachine_Function()
 {
+	switch (SethomeMode)
+	{
+		case SetHomeState_0:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
+			SethomeMode = SetHomeState_1;
+			break;
+		case SetHomeState_1:
+			break;
+		case SetHomeState_2:
+			Angularpos_InputNumber = 0;
+			MovingLinkMode = LMM_Set_Pos_Directly;
+			TrajectoryGenerationPrepareDATA();
+			TrajectoryGenerationCalculation();
+			SethomeMode = SetHomeState_3;
+			break;
+		case SetHomeState_3:
+		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
+		  {
+			  Controlling_the_LINK();
+
+			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
+					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
+					  (Moving_Link_Task_Flag == 1))
+			  {
+					SethomeMode = SetHomeState_0;
+					Munmunbot_State = STATE_Idle;
+					MovingLinkMode = LMM_Not_Set;
+					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+					TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+					Moving_Link_Task_Flag = 0;
+					PID_Reset();
+			  }
+		  }
+		  	  break;
+     }
+
 }
 
 /* USER CODE END 4 */
