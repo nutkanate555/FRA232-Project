@@ -853,7 +853,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line15 -> index  ///13 for test
 	{
-    	if ((Munmunbot_State == STATE_PreSetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
     	{
     		if (SethomeMode == SetHomeState_1)
     		{
