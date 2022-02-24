@@ -1583,7 +1583,6 @@ void SETHOME_StateMachine_Function()
 			  {
 					SethomeMode = SetHomeState_0;
 					Munmunbot_State = STATE_Idle;
-					Munmunbot_State = 99;
 					MovingLinkMode = LMM_Not_Set;
 					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 					TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
@@ -1591,7 +1590,7 @@ void SETHOME_StateMachine_Function()
 					PID_Reset();
 			  }
 		  }
-		  	  break;
+		  break;
      }
 
 }
