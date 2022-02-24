@@ -2931,10 +2931,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  8001a54:	f5b3 5f00 	cmp.w	r3, #8192	; 0x2000
  8001a58:	d11c      	bne.n	8001a94 <HAL_GPIO_EXTI_Callback+0x4c>
 	{
-    	if ((Munmunbot_State == STATE_PreSetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
  8001a5a:	4b10      	ldr	r3, [pc, #64]	; (8001a9c <HAL_GPIO_EXTI_Callback+0x54>)
  8001a5c:	781b      	ldrb	r3, [r3, #0]
- 8001a5e:	2b07      	cmp	r3, #7
+ 8001a5e:	2b06      	cmp	r3, #6
  8001a60:	d003      	beq.n	8001a6a <HAL_GPIO_EXTI_Callback+0x22>
  8001a62:	4b0e      	ldr	r3, [pc, #56]	; (8001a9c <HAL_GPIO_EXTI_Callback+0x54>)
  8001a64:	781b      	ldrb	r3, [r3, #0]
