@@ -255,6 +255,7 @@ void Emergency_switch_trigger();
 void Controlling_the_LINK();
 void SETHOME_StateMachine_Function();
 void PRESETHOME_StateMachine_Function();
+void SETHOME_TrajectoryGenerationPrepareDATA();
 
 /* USER CODE END PFP */
 
@@ -851,7 +852,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+    if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+	{
+    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	{
+    		if (SethomeMode == SetHomeState_1)
+    		{
+    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
+    			SethomeMode = SetHomeState_2;
+    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+    		}
+    	}
+	}
+
+    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
 	{
     	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
     	{
@@ -1566,12 +1581,29 @@ void SETHOME_StateMachine_Function()
 			break;
 		case SetHomeState_2:
 			Angularpos_InputNumber = 0;
-			MovingLinkMode = LMM_Set_Pos_Directly;
-			TrajectoryGenerationPrepareDATA();
-			TrajectoryGenerationCalculation();
-			Munmunbot_State = STATE_SetHome;        ///BRUTE FORCE ALGORITHM
-			MovingLinkMode = LMM_Set_Pos_Directly;  ///BRUTE FORCE ALGORITHM
-			SethomeMode = SetHomeState_3;
+			TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
+			if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
+			{
+			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+			}
+			TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
+
+			if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
+			{
+			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
+			  SethomeMode = SetHomeState_3;
+			  TrajectoryGenerationCalculation();
+			}
+			else
+			{
+				SethomeMode = SetHomeState_0;
+				Munmunbot_State = STATE_Idle;
+				MovingLinkMode = LMM_Not_Set;
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+				TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
+				Moving_Link_Task_Flag = 0;
+				PID_Reset();
+			}
 			break;
 		case SetHomeState_3:
 		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
@@ -1609,12 +1641,29 @@ void PRESETHOME_StateMachine_Function()
 			break;
 		case SetHomeState_2:
 			Angularpos_InputNumber = 0;
-			MovingLinkMode = LMM_Set_Pos_Directly;
-			TrajectoryGenerationPrepareDATA();
-			TrajectoryGenerationCalculation();
-			Munmunbot_State = STATE_PreSetHome;     ///BRUTE FORCE ALGORITHM
-			MovingLinkMode = LMM_Set_Pos_Directly;  ///BRUTE FORCE ALGORITHM
-			SethomeMode = SetHomeState_3;
+			TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
+			if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
+			{
+			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+			}
+			TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
+
+			if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
+			{
+			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
+			  SethomeMode = SetHomeState_3;
+			  TrajectoryGenerationCalculation();
+			}
+			else
+			{
+				SethomeMode = SetHomeState_0;
+				Munmunbot_State = STATE_Disconnected;
+				MovingLinkMode = LMM_Not_Set;
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+				TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
+				Moving_Link_Task_Flag = 0;
+				PID_Reset();
+			}
 			break;
 		case SetHomeState_3:
 		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
