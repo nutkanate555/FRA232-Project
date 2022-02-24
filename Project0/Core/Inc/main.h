@@ -77,6 +77,9 @@ void Error_Handler(void);
 #define Relay_ch_3_GPIO_Port GPIOB
 #define Emergency_Switch_Signal_Pin GPIO_PIN_13
 #define Emergency_Switch_Signal_GPIO_Port GPIOB
+#define Index_Signal_Pin GPIO_PIN_15
+#define Index_Signal_GPIO_Port GPIOB
+#define Index_Signal_EXTI_IRQn EXTI15_10_IRQn
 #define LimitSwitch_Signal_Pin GPIO_PIN_6
 #define LimitSwitch_Signal_GPIO_Port GPIOC
 #define Motor_DIR_Pin GPIO_PIN_7

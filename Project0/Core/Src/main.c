@@ -844,6 +844,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : Index_Signal_Pin */
+  GPIO_InitStruct.Pin = Index_Signal_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Index_Signal_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LimitSwitch_Signal_Pin */
   GPIO_InitStruct.Pin = LimitSwitch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
