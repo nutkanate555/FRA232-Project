@@ -435,6 +435,7 @@ int main(void)
 			  break;
 	  }
 
+	  UARTTxDumpBuffer(&UART2);
   }
   /* USER CODE END 3 */
 }
