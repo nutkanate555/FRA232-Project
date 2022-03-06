@@ -370,8 +370,7 @@ int main(void)
 	   			  Controlling_the_LINK();
 
 	   			  ///////////////////////////////////////////////////////////////////
-//	   			  PositionPIDController.OutputFeedback = TrjStruc.Desire_Theta;
-	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
+//	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
 	   			  ///////////////////////////////////////////////////////////////////
 
 	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
@@ -1449,8 +1448,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							uint8_t temp[] =
 							{0x58 , 0x75 ,154, 0b0,  0b0, 0b0};
 							uint8_t Shift = 2;
-//							DataForReturn = ((((int) htim1.Instance->CNT) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
-							DataForReturn = ((((int) PositionPIDController.OutputFeedback) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
+							DataForReturn = ((((int) htim1.Instance->CNT) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
+//							DataForReturn = ((((int) PositionPIDController.OutputFeedback) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
 							temp[2+Shift] = (DataForReturn)&(0xff);
 							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
