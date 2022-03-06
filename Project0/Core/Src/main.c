@@ -177,7 +177,7 @@ typedef struct _PIDStructure
 
 
 ///Station Setting
-uint16_t StationPos[10] = {10,20,30,40,50,60,70,80,90,100};
+uint16_t StationPos[10] = {6,7,10,22,25,30,35,40,45,69};
 
 uint8_t Angularpos_InputArray[15] = {0};
 uint16_t Angularpos_InputNumber = 0;
@@ -368,6 +368,11 @@ int main(void)
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
 	   			  Controlling_the_LINK();
+
+	   			  ///////////////////////////////////////////////////////////////////
+//	   			  PositionPIDController.OutputFeedback = TrjStruc.Desire_Theta;
+	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
+	   			  ///////////////////////////////////////////////////////////////////
 
 	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
 	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
@@ -976,7 +981,8 @@ void TrajectoryGenerationPrepareDATA()
 			}
 			else
 			{
-				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));   ///fix this if change algorithm
+				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0))*5.0;   ///fix this if change algorithm
+//				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));   ///fix this if change algorithm
 				if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)  ///wrap input into 1 revolute. ///shouldn't happen
 				{
 					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
@@ -1443,7 +1449,8 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							uint8_t temp[] =
 							{0x58 , 0x75 ,154, 0b0,  0b0, 0b0};
 							uint8_t Shift = 2;
-							DataForReturn = ((((int) htim1.Instance->CNT) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
+//							DataForReturn = ((((int) htim1.Instance->CNT) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
+							DataForReturn = ((((int) PositionPIDController.OutputFeedback) % (CUSSStruc.PPRxQEI))*2*3.141*10000)/(CUSSStruc.PPRxQEI);  ///pulse to (radian*10000)
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
 							temp[2+Shift] = (DataForReturn)&(0xff);
 							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
