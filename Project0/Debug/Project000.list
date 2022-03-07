@@ -5863,19 +5863,19 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  8003154:	e08e      	b.n	8003274 <Munmunbot_Protocol+0x75c>
 
 					case 11: /// Return Angular Velocity Max  ##Complete##
-							{
-								uint8_t temp[] =
+						{
+							uint8_t temp[] =
  8003156:	4a5c      	ldr	r2, [pc, #368]	; (80032c8 <Munmunbot_Protocol+0x7b0>)
  8003158:	f107 030c 	add.w	r3, r7, #12
  800315c:	e892 0003 	ldmia.w	r2, {r0, r1}
  8003160:	6018      	str	r0, [r3, #0]
  8003162:	3304      	adds	r3, #4
  8003164:	8019      	strh	r1, [r3, #0]
-								{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
-								uint8_t Shift = 2;
+							{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
+							uint8_t Shift = 2;
  8003166:	2302      	movs	r3, #2
  8003168:	f887 3033 	strb.w	r3, [r7, #51]	; 0x33
-								DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
+							DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
  800316c:	4b57      	ldr	r3, [pc, #348]	; (80032cc <Munmunbot_Protocol+0x7b4>)
  800316e:	edd3 7a04 	vldr	s15, [r3, #16]
  8003172:	ed9f 7a57 	vldr	s14, [pc, #348]	; 80032d0 <Munmunbot_Protocol+0x7b8>
@@ -5890,7 +5890,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  8003192:	b29a      	uxth	r2, r3
  8003194:	4b4b      	ldr	r3, [pc, #300]	; (80032c4 <Munmunbot_Protocol+0x7ac>)
  8003196:	801a      	strh	r2, [r3, #0]
-								temp[1+Shift] = (DataForReturn>>8)&(0xff);
+							temp[1+Shift] = (DataForReturn>>8)&(0xff);
  8003198:	4b4a      	ldr	r3, [pc, #296]	; (80032c4 <Munmunbot_Protocol+0x7ac>)
  800319a:	881b      	ldrh	r3, [r3, #0]
  800319c:	0a1b      	lsrs	r3, r3, #8
@@ -5901,7 +5901,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  80031a8:	f107 0138 	add.w	r1, r7, #56	; 0x38
  80031ac:	440b      	add	r3, r1
  80031ae:	f803 2c2c 	strb.w	r2, [r3, #-44]
-								temp[2+Shift] = (DataForReturn)&(0xff);
+							temp[2+Shift] = (DataForReturn)&(0xff);
  80031b2:	4b44      	ldr	r3, [pc, #272]	; (80032c4 <Munmunbot_Protocol+0x7ac>)
  80031b4:	881a      	ldrh	r2, [r3, #0]
  80031b6:	f897 3033 	ldrb.w	r3, [r7, #51]	; 0x33
@@ -5910,7 +5910,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  80031be:	f107 0138 	add.w	r1, r7, #56	; 0x38
  80031c2:	440b      	add	r3, r1
  80031c4:	f803 2c2c 	strb.w	r2, [r3, #-44]
-								temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
+							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
  80031c8:	f897 3033 	ldrb.w	r3, [r7, #51]	; 0x33
  80031cc:	f107 0238 	add.w	r2, r7, #56	; 0x38
  80031d0:	4413      	add	r3, r2
@@ -5936,7 +5936,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  8003208:	f107 0138 	add.w	r1, r7, #56	; 0x38
  800320c:	440b      	add	r3, r1
  800320e:	f803 2c2c 	strb.w	r2, [r3, #-44]
-								UARTTxWrite(uart, temp, 4+Shift);
+							UARTTxWrite(uart, temp, 4+Shift);
  8003212:	f897 3033 	ldrb.w	r3, [r7, #51]	; 0x33
  8003216:	b29b      	uxth	r3, r3
  8003218:	3304      	adds	r3, #4
@@ -5945,7 +5945,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  8003220:	4619      	mov	r1, r3
  8003222:	6838      	ldr	r0, [r7, #0]
  8003224:	f7ff fc0c 	bl	8002a40 <UARTTxWrite>
-							}
+						}
 						break;
  8003228:	e024      	b.n	8003274 <Munmunbot_Protocol+0x75c>
 

@@ -981,7 +981,6 @@ void TrajectoryGenerationPrepareDATA()
 			else
 			{
 				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0))*5.0;   ///fix this if change algorithm
-//				TrjStruc.Desire_Theta = (StationPos[Current_Station-1]*CUSSStruc.PPRxQEI/(360.0));   ///fix this if change algorithm
 				if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)  ///wrap input into 1 revolute. ///shouldn't happen
 				{
 					TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
@@ -1458,16 +1457,16 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 						break;
 
 					case 11: /// Return Angular Velocity Max  ##Complete##
-							{
-								uint8_t temp[] =
-								{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
-								uint8_t Shift = 2;
-								DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
-								temp[1+Shift] = (DataForReturn>>8)&(0xff);
-								temp[2+Shift] = (DataForReturn)&(0xff);
-								temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
-								UARTTxWrite(uart, temp, 4+Shift);
-							}
+						{
+							uint8_t temp[] =
+							{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
+							uint8_t Shift = 2;
+							DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
+							temp[1+Shift] = (DataForReturn>>8)&(0xff);
+							temp[2+Shift] = (DataForReturn)&(0xff);
+							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
+							UARTTxWrite(uart, temp, 4+Shift);
+						}
 						break;
 
 					case 12:  //Enable Gripper
