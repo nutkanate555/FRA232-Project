@@ -105,7 +105,7 @@ typedef enum
 } Robot_STATE;
 
 //Robot_STATE Munmunbot_State = STATE_Disconnected;
-Robot_STATE Munmunbot_State = STATE_PreSetHome;
+Robot_STATE Munmunbot_State = STATE_Disconnected;
 
 typedef enum
 {
@@ -195,7 +195,7 @@ LinkMovingMode MovingLinkMode = LMM_Not_Set;
 uint8_t Current_Station = 0;
 uint8_t NumberOfStationToGo = 0;
 uint8_t NumberOfStationPTR = 0;
-uint32_t Plant_input = 0;
+float Plant_input = 0;
 uint8_t Moving_Link_Task_Flag = 0;
 
 uint8_t GripperEnable = 1;
@@ -315,6 +315,8 @@ int main(void)
   VelocityControllerInit(&VelocityPIDController, &TrjStruc);
   DisplacementControllerInit(&PositionPIDController, &TrjStruc);
 
+  htim1.Instance->CNT = CUSSStruc.PPRxQEI;
+
   ///UART init
   UART2.huart = &huart2;
   UART2.RxLen = 255;
@@ -373,14 +375,16 @@ int main(void)
 //	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
 	   			  ///////////////////////////////////////////////////////////////////
 
-	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
-	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
+	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
+	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
 						  (Moving_Link_Task_Flag == 1))
+//	   			if ((Moving_Link_Task_Flag == 1))
 	   			  {
 	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
 	   				  {
 	   					Munmunbot_State = STATE_Idle;
 	   					MovingLinkMode = LMM_Not_Set;
+	   					TrjStruc.Start_Theta =  PositionPIDController.OutputFeedback;
 	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 	   					ACK2Return(&UART2);
 	   				  }
@@ -778,7 +782,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : Emergency_Switch_Signal_Pin */
   GPIO_InitStruct.Pin = Emergency_Switch_Signal_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(Emergency_Switch_Signal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Index_Signal_Pin */
@@ -871,19 +875,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	}
 	}
 
-    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
-	{
-    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
-    	{
-    		if (SethomeMode == SetHomeState_1)
-    		{
-    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
-    			SethomeMode = SetHomeState_2;
-    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-    		}
-    	}
-	}
+//    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+//	{
+//    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+//    	{
+//    		if (SethomeMode == SetHomeState_1)
+//    		{
+//    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
+//    			SethomeMode = SetHomeState_2;
+//    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+//				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+//    		}
+//    	}
+//	}
 }
 
 uint64_t micros()
@@ -913,18 +917,18 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 5;
+	VCvar->Kp = 2;
 	VCvar->Ki = 0.2;
-	VCvar->Kd = 0.1;
+	VCvar->Kd = 0.01;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
 
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 5;
-	VCvar->Ki = 0.2;
-	VCvar->Kd = 0;
+	VCvar->Kp = 10;
+	VCvar->Ki = 1;
+	VCvar->Kd = 0.1;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
@@ -1128,7 +1132,7 @@ void TrajectoryGenerationProcess()
 void PIDController2in1()
 {
 	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
-    PositionPIDController.NowError = PositionPIDController.OutputFeedback-PositionPIDController.OutputDesire;
+    PositionPIDController.NowError = PositionPIDController.OutputDesire - PositionPIDController.OutputFeedback;
     PositionPIDController.Integral_Value += PositionPIDController.NowError*PositionPIDController.SamplingTime;
     PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
 					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
@@ -1136,7 +1140,7 @@ void PIDController2in1()
     PositionPIDController.PreviousError = PositionPIDController.NowError;
 
     VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
-    VelocityPIDController.NowError = VelocityPIDController.OutputFeedback-VelocityPIDController.OutputDesire;
+    VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
     VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
     VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
 					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
@@ -1540,7 +1544,7 @@ void LAMP_ON(uint8_t lampnumber)
 
 void Emergency_switch_trigger()
 {
-	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 0)
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 1)
 	{
 		Munmunbot_State = STATE_Disconnected;
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
@@ -1558,20 +1562,23 @@ void Controlling_the_LINK()
 	  EncoderVelocityAndPosition_Update();
 	  PIDController2in1();  ///use only position
 	  Plant_input = PositionPIDController.ControllerOutput;
-	  DCMotorStruc.PWMOut = abs(Plant_input);
+
+	  if (Plant_input >= 0) /// Setting DIR
+	  {
+		  DCMotorStruc.DIR = 1;
+		  DCMotorStruc.PWMOut = (uint32_t) (Plant_input);
+	  }
+	  else if (Plant_input < 0)
+	  {
+		  DCMotorStruc.DIR = 0;
+		  DCMotorStruc.PWMOut = (uint32_t) (Plant_input * -1.0);
+	  }
+
 	  if (DCMotorStruc.PWMOut > 10000)   /// Saturation Output
 	  {
 		 DCMotorStruc.PWMOut = 10000;
 	  }
 
-	  if (Plant_input >= 0) /// Setting DIR
-	  {
-		  DCMotorStruc.DIR = 1;
-	  }
-	  else if (Plant_input < 0)
-	  {
-		  DCMotorStruc.DIR = 0;
-	  }
 	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, DCMotorStruc.DIR);
 
 	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, DCMotorStruc.PWMOut); ///Setting PWM Pin
@@ -1620,8 +1627,8 @@ void SETHOME_StateMachine_Function()
 		  {
 			  Controlling_the_LINK();
 
-			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
-					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
+			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
+					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
 					  (Moving_Link_Task_Flag == 1))
 			  {
 					SethomeMode = SetHomeState_0;
@@ -1680,8 +1687,8 @@ void PRESETHOME_StateMachine_Function()
 		  {
 			  Controlling_the_LINK();
 
-			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 3) &&
-					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 3) &&
+			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
+					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
 					  (Moving_Link_Task_Flag == 1))
 			  {
 					SethomeMode = SetHomeState_0;
