@@ -875,19 +875,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	}
 	}
 
-//    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
-//	{
-//    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
-//    	{
-//    		if (SethomeMode == SetHomeState_1)
-//    		{
-//    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
-//    			SethomeMode = SetHomeState_2;
-//    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-//				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//    		}
-//    	}
-//	}
+    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+	{
+    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	{
+    		if (SethomeMode == SetHomeState_1)
+    		{
+    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
+    			SethomeMode = SetHomeState_2;
+    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+    		}
+    	}
+	}
 }
 
 uint64_t micros()
