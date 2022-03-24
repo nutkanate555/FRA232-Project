@@ -202,6 +202,8 @@ uint8_t GripperEnable = 1;
 uint8_t GripperState = 0;
 uint64_t Timestamp_Gripper = 0;
 
+uint8_t AcceptableError = 10;
+
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
 
@@ -375,10 +377,9 @@ int main(void)
 //	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
 	   			  ///////////////////////////////////////////////////////////////////
 
-	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
-	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
+	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
+	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
 						  (Moving_Link_Task_Flag == 1))
-//	   			if ((Moving_Link_Task_Flag == 1))
 	   			  {
 	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
 	   				  {
@@ -1627,8 +1628,8 @@ void SETHOME_StateMachine_Function()
 		  {
 			  Controlling_the_LINK();
 
-			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
-					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
+			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
+					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
 					  (Moving_Link_Task_Flag == 1))
 			  {
 					SethomeMode = SetHomeState_0;
@@ -1687,8 +1688,8 @@ void PRESETHOME_StateMachine_Function()
 		  {
 			  Controlling_the_LINK();
 
-			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + 7) &&
-					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - 7) &&
+			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
+					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
 					  (Moving_Link_Task_Flag == 1))
 			  {
 					SethomeMode = SetHomeState_0;
