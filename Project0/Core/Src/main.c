@@ -55,6 +55,9 @@ DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
 
+uint8_t pidSetZeroFlag = 0;
+
+
 uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
@@ -444,6 +447,14 @@ int main(void)
 			  break;
 	  }
 
+	  if ( pidSetZeroFlag != 0 )
+	  {
+		  pidSetZeroFlag = 0;
+		  PID_Reset();
+	  }
+
+
+
 	  UARTTxDumpBuffer(&UART2);
   }
   /* USER CODE END 3 */
@@ -792,11 +803,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Index_Signal_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LimitSwitch_Signal_Pin */
-  GPIO_InitStruct.Pin = LimitSwitch_Signal_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(LimitSwitch_Signal_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin : LimitSwitchSignal_Pin */
+  GPIO_InitStruct.Pin = LimitSwitchSignal_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LimitSwitchSignal_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Motor_DIR_Pin */
   GPIO_InitStruct.Pin = Motor_DIR_Pin;
@@ -876,7 +887,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	}
 	}
 
-    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+    else if(GPIO_Pin == GPIO_PIN_6) // LimitSwitch
 	{
     	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
     	{
@@ -889,6 +900,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		}
     	}
 	}
+
+//    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
+//	{
+//    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+//    	{
+//    		if (SethomeMode == SetHomeState_1)
+//    		{
+//    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
+//    			SethomeMode = SetHomeState_2;
+//    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+//				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+//    		}
+//    	}
+//	}
 }
 
 uint64_t micros()
@@ -918,18 +943,18 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 2;
-	VCvar->Ki = 0.2;
-	VCvar->Kd = 0.01;
+	VCvar->Kp = 7;
+	VCvar->Ki = 1;
+	VCvar->Kd = 0.2;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
 
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 10;
-	VCvar->Ki = 1;
-	VCvar->Kd = 0.1;
+	VCvar->Kp = 0.4;
+	VCvar->Ki = 0.1;
+	VCvar->Kd = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
@@ -1379,7 +1404,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 					case 4: //Set Angular Velocity ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
-							CUSSStruc.RPMp = Data_HAck;
+							CUSSStruc.RPMp = (Data_HAck*10.0)/255.0;
 							TrajectoryGenerationVelocityMaxSetting(&TrjStruc , &CUSSStruc);
 						}
 						ACK1Return(uart);
@@ -1467,6 +1492,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
 							uint8_t Shift = 2;
 							DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
+							DataForReturn = (DataForReturn * 255.0)/10.0;
 							temp[1+Shift] = (DataForReturn>>8)&(0xff);
 							temp[2+Shift] = (DataForReturn)&(0xff);
 							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
@@ -1545,15 +1571,15 @@ void LAMP_ON(uint8_t lampnumber)
 
 void Emergency_switch_trigger()
 {
-	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 1)
-	{
-		Munmunbot_State = STATE_Disconnected;
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
-		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-		TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-		Moving_Link_Task_Flag = 0;
-		PID_Reset();
-	}
+//	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 1)
+//	{
+//		Munmunbot_State = STATE_Disconnected;
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+//		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+//		TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+//		Moving_Link_Task_Flag = 0;
+//		PID_Reset();
+//	}
 }
 
 void Controlling_the_LINK()
@@ -1562,7 +1588,8 @@ void Controlling_the_LINK()
 	  TrajectoryGenerationProcess();
 	  EncoderVelocityAndPosition_Update();
 	  PIDController2in1();  ///use only position
-	  Plant_input = PositionPIDController.ControllerOutput;
+//	  Plant_input = PositionPIDController.ControllerOutput;
+	  Plant_input = VelocityPIDController.ControllerOutput;
 
 	  if (Plant_input >= 0) /// Setting DIR
 	  {
@@ -1598,30 +1625,39 @@ void SETHOME_StateMachine_Function()
 		case SetHomeState_1:
 			break;
 		case SetHomeState_2:
-			Angularpos_InputNumber = 0;
-			TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
-			if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
-			{
-			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
-			}
-			TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
 
-			if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
-			{
-			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
-			  SethomeMode = SetHomeState_3;
-			  TrajectoryGenerationCalculation();
-			}
-			else
-			{
-				SethomeMode = SetHomeState_0;
-				Munmunbot_State = STATE_Idle;
-				MovingLinkMode = LMM_Not_Set;
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-				TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
-				Moving_Link_Task_Flag = 0;
-				PID_Reset();
-			}
+			SethomeMode = SetHomeState_0;
+			Munmunbot_State = STATE_Idle;
+			MovingLinkMode = LMM_Not_Set;
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+			TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
+			Moving_Link_Task_Flag = 0;
+			PID_Reset();
+
+//			Angularpos_InputNumber = 0;
+//			TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
+//			if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
+//			{
+//			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
+//			}
+//			TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
+//
+//			if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
+//			{
+//			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
+//			  SethomeMode = SetHomeState_3;
+//			  TrajectoryGenerationCalculation();
+//			}
+//			else
+//			{
+//				SethomeMode = SetHomeState_0;
+//				Munmunbot_State = STATE_Idle;
+//				MovingLinkMode = LMM_Not_Set;
+//				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+//				TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
+//				Moving_Link_Task_Flag = 0;
+//				PID_Reset();
+//			}
 			break;
 		case SetHomeState_3:
 		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
