@@ -803,12 +803,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Index_Signal_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LimitSwitchSignal_Pin */
-  GPIO_InitStruct.Pin = LimitSwitchSignal_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(LimitSwitchSignal_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pin : Motor_DIR_Pin */
   GPIO_InitStruct.Pin = Motor_DIR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -816,7 +810,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Motor_DIR_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : LimitSwitchSignal_Pin */
+  GPIO_InitStruct.Pin = LimitSwitchSignal_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LimitSwitchSignal_GPIO_Port, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -887,7 +890,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	}
 	}
 
-    else if(GPIO_Pin == GPIO_PIN_6) // LimitSwitch
+    if(GPIO_Pin == GPIO_PIN_8) // LimitSwitch
 	{
     	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
     	{

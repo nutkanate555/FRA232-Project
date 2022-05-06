@@ -80,10 +80,11 @@ void Error_Handler(void);
 #define Index_Signal_Pin GPIO_PIN_15
 #define Index_Signal_GPIO_Port GPIOB
 #define Index_Signal_EXTI_IRQn EXTI15_10_IRQn
-#define LimitSwitchSignal_Pin GPIO_PIN_6
-#define LimitSwitchSignal_GPIO_Port GPIOC
 #define Motor_DIR_Pin GPIO_PIN_7
 #define Motor_DIR_GPIO_Port GPIOC
+#define LimitSwitchSignal_Pin GPIO_PIN_8
+#define LimitSwitchSignal_GPIO_Port GPIOC
+#define LimitSwitchSignal_EXTI_IRQn EXTI9_5_IRQn
 #define Motor_Encoder_A_Pin GPIO_PIN_8
 #define Motor_Encoder_A_GPIO_Port GPIOA
 #define Motor_Encoder_B_Pin GPIO_PIN_9
