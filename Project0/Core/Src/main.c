@@ -133,6 +133,7 @@ typedef struct _TrajectoryGenerationStructure
 	float AngularVelocity;
 	float AngularAcceration;
 	float AngularDisplacementDesire;
+	float AngularVelocityDesire;
 
 	float Theta_Stamp_0;
 	float Theta_Stamp_1;
@@ -1092,6 +1093,8 @@ void TrajectoryGenerationProcess()
 						  ((TrjStruc.AngularAcceration*0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
 						  +TrjStruc.Theta_Stamp_0;
 
+				  TrjStruc.AngularVelocityDesire = TrjStruc.AngularAcceration * TrjStruc.Equation_Realtime_Sec;
+
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
@@ -1104,6 +1107,10 @@ void TrajectoryGenerationProcess()
 						  ((TrjStruc.AngularAcceration*-0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
 						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_1;
+
+				  TrjStruc.AngularVelocityDesire = ( -1.0*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec ) +
+						  	  	  	  	  	  	   (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular);
+
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
@@ -1120,6 +1127,8 @@ void TrajectoryGenerationProcess()
 							((TrjStruc.AngularAcceration*0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
 							+TrjStruc.Theta_Stamp_0;
 
+				  TrjStruc.AngularVelocityDesire = TrjStruc.AngularAcceration * TrjStruc.Equation_Realtime_Sec;
+
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
@@ -1131,6 +1140,9 @@ void TrajectoryGenerationProcess()
 				  TrjStruc.AngularDisplacementDesire =
 						  (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
 						  +TrjStruc.Theta_Stamp_1;
+
+				  TrjStruc.AngularVelocityDesire = TrjStruc.AngularVelocity;
+
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.LinearTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
@@ -1143,6 +1155,10 @@ void TrajectoryGenerationProcess()
 						  ((TrjStruc.AngularAcceration*-0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
 						  + (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_2;
+
+				  TrjStruc.AngularVelocityDesire = ( -1*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec )
+						                           + ( TrjStruc.AngularVelocity );
+
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
@@ -1154,6 +1170,7 @@ void TrajectoryGenerationProcess()
 		  case 2:
 			  Moving_Link_Task_Flag = 1;
 			  TrjStruc.AngularDisplacementDesire = TrjStruc.Desire_Theta;
+			  TrjStruc.AngularVelocityDesire = 0;
 			  break;
 		  }
 }
@@ -1168,7 +1185,8 @@ void PIDController2in1()
 					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError)/PositionPIDController.SamplingTime);
     PositionPIDController.PreviousError = PositionPIDController.NowError;
 
-    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
+    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
+//    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
     VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
     VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
     VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
