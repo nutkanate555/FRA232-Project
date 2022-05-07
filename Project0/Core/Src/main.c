@@ -1003,6 +1003,8 @@ void TrajectoryGenerationVelocityMaxSetting(TrajectoryGenerationStructure *TGSva
 
 void TrajectoryGenerationPrepareDATA()
 {
+	// fix start position base on Encoder
+	TrjStruc.Start_Theta = htim1.Instance->CNT;
 
 	if (MovingLinkMode == LMM_Set_Pos_Directly)
 	  {
@@ -1072,6 +1074,7 @@ void TrajectoryGenerationPrepareDATA()
 	  {
 		MovingLinkMode = LMM_Not_Set;
 		Munmunbot_State = STATE_Idle;
+		ACK2Return(&UART2);
 	  }
 }
 
@@ -1596,10 +1599,16 @@ void PID_Reset()
 	PositionPIDController.PreviousError = 0;
 	PositionPIDController.Integral_Value = 0;
 	PositionPIDController.ControllerOutput = 0;
+	PositionPIDController.NowError = 0;
+	PositionPIDController.OutputDesire = htim1.Instance->CNT;
+	PositionPIDController.OutputFeedback = htim1.Instance->CNT;
 
 	VelocityPIDController.PreviousError = 0;
 	VelocityPIDController.Integral_Value = 0;
 	VelocityPIDController.ControllerOutput = 0;
+	VelocityPIDController.NowError = 0;
+	VelocityPIDController.OutputDesire = 0;
+	VelocityPIDController.OutputFeedback = 0;
 }
 
 void LAMP_ON(uint8_t lampnumber)
@@ -1632,6 +1641,8 @@ void Emergency_switch_trigger()
 		Munmunbot_State = STATE_Disconnected;
 		MovingLinkMode = LMM_Not_Set;
 		SethomeMode = SetHomeState_0;
+		TrjStruc.Mode = 0;
+		TrjStruc.Submode = 0;
 
 		// Send back ACK to User-interface
 		if ((Munmunbot_State == STATE_Calculation) || (Munmunbot_State == STATE_PrepareDATA) ||
