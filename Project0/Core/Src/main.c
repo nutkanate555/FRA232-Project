@@ -207,7 +207,7 @@ uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
 uint64_t Timestamp_Gripper = 0;
 
-uint8_t AcceptableError = 5;
+uint8_t AcceptableError = 2;
 
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
