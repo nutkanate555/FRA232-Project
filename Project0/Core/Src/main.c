@@ -207,7 +207,7 @@ uint8_t GripperEnable = 1;
 uint8_t GripperState = 0;
 uint64_t Timestamp_Gripper = 0;
 
-uint8_t AcceptableError = 10;
+uint8_t AcceptableError = 5;
 
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
@@ -1547,14 +1547,14 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 					case 11: /// Return Angular Velocity Max  ##Complete##
 						{
 							uint8_t temp[] =
-							{0x58 , 0x75 ,155, 0b0,  0b0, 0b0};
+							{ 0x58, 0x75, 155, 0b0,  0b0, 0b0 };
 							uint8_t Shift = 2;
-							DataForReturn = (TrjStruc.AngularVelocityMax_Setting*60)/(CUSSStruc.PPRxQEI);  ///pps to RPM
-							DataForReturn = (DataForReturn * 255.0)/10.0;
-							temp[1+Shift] = (DataForReturn>>8)&(0xff);
-							temp[2+Shift] = (DataForReturn)&(0xff);
-							temp[3+Shift] = ~(temp[0+Shift]+temp[1+Shift]+temp[2+Shift]);
-							UARTTxWrite(uart, temp, 4+Shift);
+							DataForReturn = ( TrjStruc.AngularVelocityMax_Setting*60.0 )/( ( float ) CUSSStruc.PPRxQEI );  ///pps to RPM
+							DataForReturn = ( DataForReturn * 255.0 )/10.0;
+							temp[ 1+Shift ] = ( DataForReturn>>8 )&( 0xff );
+							temp[ 2+Shift ] = ( DataForReturn )&( 0xff );
+							temp[ 3+Shift ] = ~( temp[ 0+Shift ]+temp[ 1+Shift ]+temp[ 2+Shift ] );
+							UARTTxWrite( uart, temp, 4+Shift );
 						}
 						break;
 
