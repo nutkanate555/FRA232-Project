@@ -161,7 +161,7 @@ typedef struct _ConverterUnitSystemStructure
 {
 	uint32_t PPR;
 	uint32_t PPRxQEI;
-	uint32_t RPMp;
+	float RPMp;
 
 } ConverterUnitSystemStructure;
 
@@ -1549,8 +1549,9 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 							uint8_t temp[] =
 							{ 0x58, 0x75, 155, 0b0,  0b0, 0b0 };
 							uint8_t Shift = 2;
-							DataForReturn = ( TrjStruc.AngularVelocityMax_Setting*60.0 )/( ( float ) CUSSStruc.PPRxQEI );  ///pps to RPM
-							DataForReturn = ( DataForReturn * 255.0 )/10.0;
+//							float temp2  = ( TrjStruc.AngularVelocityMax_Setting*60.0 )/( ( float ) CUSSStruc.PPRxQEI );  ///pps to RPM
+							float temp3 = ( abs( VelocityPIDController.OutputFeedback )*60.0 )/( ( float ) CUSSStruc.PPRxQEI );
+							DataForReturn = ( temp3 * 255.0 )/10.0;
 							temp[ 1+Shift ] = ( DataForReturn>>8 )&( 0xff );
 							temp[ 2+Shift ] = ( DataForReturn )&( 0xff );
 							temp[ 3+Shift ] = ~( temp[ 0+Shift ]+temp[ 1+Shift ]+temp[ 2+Shift ] );
