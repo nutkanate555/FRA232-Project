@@ -142,6 +142,7 @@ typedef struct _TrajectoryGenerationStructure
 	double Equation_Realtime_Sec;
 
 	uint64_t Equation_Timestamp;
+	uint64_t Velocity_Timestamp;
 	uint64_t Loop_Timestamp;
 
 	uint32_t Loop_Freq;
@@ -152,8 +153,12 @@ typedef struct _TrajectoryGenerationStructure
 	float Delta_Theta;
 	float Abs_Delta_Theta;
 
+	float AngularVelocityFinalMin;
+	float Alpha;
+
 	uint32_t Mode;
 	uint32_t Submode;
+	uint32_t Subsubmode;
 
 } TrajectoryGenerationStructure;
 
@@ -207,7 +212,7 @@ uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
 uint64_t Timestamp_Gripper = 0;
 
-uint8_t AcceptableError = 2;
+uint8_t AcceptableError = 3;
 
 PIDStructure PositionPIDController = {0};
 PIDStructure VelocityPIDController  = {0};
@@ -934,19 +939,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	}
 	}
 
-//    else if(GPIO_Pin == GPIO_PIN_15) // If The INT Source Is EXTI Line15 -> index  ///13 for test
-//	{
-//    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
-//    	{
-//    		if (SethomeMode == SetHomeState_1)
-//    		{
-//    			HTIM_ENCODER.Instance->CNT = CUSSStruc.PPRxQEI;
-//    			SethomeMode = SetHomeState_2;
-//    			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-//				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//    		}
-//    	}
-//	}
 }
 
 uint64_t micros()
@@ -972,6 +964,9 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
+	TGSvar->AngularVelocityFinalMin = 0*1.8*(CUSSvar->PPRxQEI)/60.0;
+	TGSvar->Alpha = 1;
+
 }
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
@@ -1085,12 +1080,14 @@ void TrajectoryGenerationCalculation()
 		 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting * -1;
 		 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting *-1;
 		 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta * -1;
+		 TrjStruc.Alpha = -1;
 	  }
 	  else if (TrjStruc.Delta_Theta > 0)
 	  {
 		 TrjStruc.AngularAcceration = TrjStruc.AngularAccerationMax_Setting;
 		 TrjStruc.AngularVelocity = TrjStruc.AngularVelocityMax_Setting;
 		 TrjStruc.Abs_Delta_Theta = TrjStruc.Delta_Theta;
+		 TrjStruc.Alpha = 1;
 	  }
 
 	  if (TrjStruc.Abs_Delta_Theta < TrjStruc.Theta_min_for_LSPB)   ///Triangular mode0
@@ -1100,6 +1097,7 @@ void TrajectoryGenerationCalculation()
 		 TrjStruc.Theta_Stamp_1 = ((TrjStruc.AngularAcceration*(TrjStruc.BlendTimeTriangular*TrjStruc.BlendTimeTriangular))/2.0) + TrjStruc.Theta_Stamp_0;
 		 TrjStruc.Mode = 0;
 		 TrjStruc.Submode = 0;
+		 TrjStruc.Subsubmode = 0;
 	  }
 	  else if (TrjStruc.Abs_Delta_Theta >= TrjStruc.Theta_min_for_LSPB)  ///LSPB mode1
 	  {
@@ -1109,6 +1107,7 @@ void TrajectoryGenerationCalculation()
 		  TrjStruc.Theta_Stamp_2 = (TrjStruc.AngularVelocity*TrjStruc.LinearTimeLSPB) + TrjStruc.Theta_Stamp_1;
 		  TrjStruc.Mode = 1;
 		  TrjStruc.Submode = 0;
+		  TrjStruc.Subsubmode = 0;
 	  }
 	 TrjStruc.Equation_Timestamp = micros();
 	 TrjStruc.Loop_Timestamp = micros();
@@ -1143,13 +1142,36 @@ void TrajectoryGenerationProcess()
 						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_1;
 
-				  TrjStruc.AngularVelocityDesire = ( -1.0*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec ) +
-						  	  	  	  	  	  	   (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular);
+				  if ( TrjStruc.Subsubmode == 0 )
+				  {
+					  TrjStruc.AngularVelocityDesire = ( -1.0*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec ) +
+													   (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular);
+
+					  if ( TrjStruc.Alpha * TrjStruc.AngularVelocityDesire <= TrjStruc.AngularVelocityFinalMin )
+					  {
+						  TrjStruc.Subsubmode = 1;
+						  TrjStruc.Velocity_Timestamp = micros();
+					  }
+
+				  }
+				  else if ( TrjStruc.Subsubmode == 1 )
+				  {
+					  TrjStruc.AngularVelocityDesire = TrjStruc.Alpha * TrjStruc.AngularVelocityFinalMin;
+					  if (micros()-TrjStruc.Velocity_Timestamp >= ((TrjStruc.BlendTimeTriangular*1000000)-(TrjStruc.Velocity_Timestamp - TrjStruc.Equation_Timestamp))/2.0)
+					  {
+						  TrjStruc.Subsubmode = 2;
+					  }
+				  }
+				  else if ( TrjStruc.Subsubmode == 2 )
+				  {
+					  TrjStruc.AngularVelocityDesire = 0;
+				  }
 
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeTriangular*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 0;
+					  TrjStruc.Subsubmode = 0;
 					  TrjStruc.Mode = 2; ///Final Value Mode
 				  }
 			  }
@@ -1191,13 +1213,37 @@ void TrajectoryGenerationProcess()
 						  + (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_2;
 
-				  TrjStruc.AngularVelocityDesire = ( -1*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec )
-						                           + ( TrjStruc.AngularVelocity );
+
+
+				  if ( TrjStruc.Subsubmode == 0 )
+				  {
+					  TrjStruc.AngularVelocityDesire = ( -1*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec )
+							                           + ( TrjStruc.AngularVelocity );
+
+					  if (  TrjStruc.Alpha * TrjStruc.AngularVelocityDesire <=  TrjStruc.AngularVelocityFinalMin )
+					  {
+						  TrjStruc.Subsubmode = 1;
+						  TrjStruc.Velocity_Timestamp = micros();
+					  }
+				  }
+				  else if ( TrjStruc.Subsubmode == 1 )
+				  {
+					  TrjStruc.AngularVelocityDesire = TrjStruc.Alpha * TrjStruc.AngularVelocityFinalMin;
+					  if (micros()-TrjStruc.Velocity_Timestamp >= ((TrjStruc.BlendTimeLSPB*1000000)-(TrjStruc.Velocity_Timestamp - TrjStruc.Equation_Timestamp))/2.0)
+					  {
+						  TrjStruc.Subsubmode = 2;
+					  }
+				  }
+				  else if ( TrjStruc.Subsubmode == 2 )
+				  {
+					  TrjStruc.AngularVelocityDesire = 0;
+				  }
 
 				  if (micros()-TrjStruc.Equation_Timestamp >= TrjStruc.BlendTimeLSPB*1000000)
 				  {
 					  TrjStruc.Equation_Timestamp = micros();
 					  TrjStruc.Submode = 0;
+					  TrjStruc.Subsubmode = 0;
 					  TrjStruc.Mode = 2; ///Final Value Mode
 				  }
 			  }
@@ -1702,7 +1748,7 @@ void SETHOME_StateMachine_Function()
 	{
 		case SetHomeState_0:
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1200);
 			SethomeMode = SetHomeState_1;
 			break;
 		case SetHomeState_1:
