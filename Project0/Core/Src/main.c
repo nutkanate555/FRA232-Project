@@ -203,7 +203,7 @@ uint8_t NumberOfStationPTR = 0;
 float Plant_input = 0;
 uint8_t Moving_Link_Task_Flag = 0;
 
-uint8_t GripperEnable = 1;
+uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
 uint64_t Timestamp_Gripper = 0;
 

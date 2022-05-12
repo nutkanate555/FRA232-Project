@@ -4001,13 +4001,10 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .data.StationPos
                 0x0000000020000000       0x14 Core/Src/main.o
                 0x0000000020000000                StationPos
- .data.GripperEnable
-                0x0000000020000014        0x1 Core/Src/main.o
-                0x0000000020000014                GripperEnable
  .data.AcceptableError
-                0x0000000020000015        0x1 Core/Src/main.o
-                0x0000000020000015                AcceptableError
- *fill*         0x0000000020000016        0x2 
+                0x0000000020000014        0x1 Core/Src/main.o
+                0x0000000020000014                AcceptableError
+ *fill*         0x0000000020000015        0x3 
  .data.SystemCoreClock
                 0x0000000020000018        0x4 Core/Src/system_stm32f4xx.o
                 0x0000000020000018                SystemCoreClock
@@ -4089,10 +4086,13 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .bss.Moving_Link_Task_Flag
                 0x00000000200000f8        0x1 Core/Src/main.o
                 0x00000000200000f8                Moving_Link_Task_Flag
- .bss.GripperState
+ .bss.GripperEnable
                 0x00000000200000f9        0x1 Core/Src/main.o
-                0x00000000200000f9                GripperState
- *fill*         0x00000000200000fa        0x6 
+                0x00000000200000f9                GripperEnable
+ .bss.GripperState
+                0x00000000200000fa        0x1 Core/Src/main.o
+                0x00000000200000fa                GripperState
+ *fill*         0x00000000200000fb        0x5 
  .bss.Timestamp_Gripper
                 0x0000000020000100        0x8 Core/Src/main.o
                 0x0000000020000100                Timestamp_Gripper
