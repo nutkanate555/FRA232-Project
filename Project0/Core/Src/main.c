@@ -103,8 +103,7 @@ typedef enum
 	STATE_Calculation,
 	STATE_Link_Moving,
 	STATE_End_Effector_Working,
-	STATE_SetHome,
-	STATE_PreSetHome
+	STATE_SetHome
 } Robot_STATE;
 
 //Robot_STATE Munmunbot_State = STATE_Disconnected;
@@ -266,7 +265,6 @@ void Emergency_switch_trigger();
 
 void Controlling_the_LINK();
 void SETHOME_StateMachine_Function();
-void PRESETHOME_StateMachine_Function();
 void SETHOME_TrajectoryGenerationPrepareDATA();
 
 /* USER CODE END PFP */
@@ -472,11 +470,6 @@ int main(void)
 	  		  Emergency_switch_trigger();
 	  		  break;
 
-	  		case STATE_PreSetHome:
-			  LAMP_ON(1);
-			  PRESETHOME_StateMachine_Function();
-			  Emergency_switch_trigger();
-			  break;
 	  }
 
 	  if ( pidSetZeroFlag != 0 )
@@ -893,7 +886,7 @@ void EncoderVelocityAndPosition_Update()
 	Velocity_Output = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
 
 	// LPF
-	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*249))/250.0;
+	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*299))/300.0;
 }
 
 void Encoder_SetHome_Position()
@@ -913,7 +906,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line15 -> index  ///13 for test
 	{
-    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	if (Munmunbot_State == STATE_SetHome)
     	{
     		if (SethomeMode == SetHomeState_1)
     		{
@@ -927,7 +920,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
     if(GPIO_Pin == GPIO_PIN_8) // LimitSwitch
 	{
-    	if ((Munmunbot_State == STATE_SetHome) || (Munmunbot_State == STATE_PreSetHome))
+    	if (Munmunbot_State == STATE_SetHome)
     	{
     		if (SethomeMode == SetHomeState_1)
     		{
@@ -971,8 +964,8 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 5;
-	VCvar->Ki = 10;
+	VCvar->Kp = 3;
+	VCvar->Ki = 0.3;
 	VCvar->Kd = 0.15;
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
@@ -981,9 +974,9 @@ void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *T
 
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 1;
-	VCvar->Ki = 1;
-	VCvar->Kd = 0;
+	VCvar->Kp = 6.5;
+	VCvar->Ki = 0.5;
+	VCvar->Kd = 0.0000005;
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
@@ -1748,7 +1741,7 @@ void SETHOME_StateMachine_Function()
 	{
 		case SetHomeState_0:
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1200);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1700);
 			SethomeMode = SetHomeState_1;
 			break;
 		case SetHomeState_1:
@@ -1811,64 +1804,6 @@ void SETHOME_StateMachine_Function()
 
 }
 
-void PRESETHOME_StateMachine_Function()
-{
-	switch (SethomeMode)
-	{
-		case SetHomeState_0:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-			SethomeMode = SetHomeState_1;
-			break;
-		case SetHomeState_1:
-			break;
-		case SetHomeState_2:
-			Angularpos_InputNumber = 0;
-			TrjStruc.Desire_Theta = (Angularpos_InputNumber*CUSSStruc.PPRxQEI/(10000.0*2.0*3.14159));  //pulse
-			if (TrjStruc.Desire_Theta >= CUSSStruc.PPRxQEI)   ///wrap input into 1 revolute.
-			{
-			 TrjStruc.Desire_Theta -= CUSSStruc.PPRxQEI;
-			}
-			TrjStruc.Desire_Theta += CUSSStruc.PPRxQEI;  /// set to middle range
-
-			if (TrjStruc.Desire_Theta != TrjStruc.Start_Theta)
-			{
-			  TrjStruc.Delta_Theta = TrjStruc.Desire_Theta - TrjStruc.Start_Theta;
-			  SethomeMode = SetHomeState_3;
-			  TrajectoryGenerationCalculation();
-			}
-			else
-			{
-				SethomeMode = SetHomeState_0;
-				Munmunbot_State = STATE_Disconnected;
-				MovingLinkMode = LMM_Not_Set;
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-				TrjStruc.Start_Theta = htim1.Instance->CNT;  //set new start theta
-				Moving_Link_Task_Flag = 0;
-				PID_Reset();
-			}
-			break;
-		case SetHomeState_3:
-		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
-		  {
-			  Controlling_the_LINK();
-
-			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
-					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
-					  (Moving_Link_Task_Flag == 1))
-			  {
-					SethomeMode = SetHomeState_0;
-					Munmunbot_State = STATE_Disconnected;
-					MovingLinkMode = LMM_Not_Set;
-					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-					TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-					Moving_Link_Task_Flag = 0;
-					PID_Reset();
-			  }
-		  }
-		  break;
-     }
-}
 
 /* USER CODE END 4 */
 
