@@ -220,6 +220,8 @@ TrajectoryGenerationStructure TrjStruc = {0};
 ConverterUnitSystemStructure CUSSStruc = {0};
 
 
+float EstimatedAngularAcceration = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -864,13 +866,16 @@ void EncoderVelocityAndPosition_Update()
 	//Save Last state
 	static uint32_t EncoderLastPosition = 0;
 	static uint64_t EncoderLastTimestamp = 0;
-	static int32_t Velocity_Output = 0;
+
+	static float EncoderLastVelocity = 0;
+	static float Velocity_Output = 0;
+	static float Acceration_Output = 0;
 	//read data
 	uint32_t EncoderNowPosition = HTIM_ENCODER.Instance->CNT;
-
 	uint64_t EncoderNowTimestamp = micros();
 
 	int32_t EncoderPositionDiff;
+	float EncoderVelocityDiff;
 	uint64_t EncoderTimeDiff;
 
 	EncoderTimeDiff = EncoderNowTimestamp - EncoderLastTimestamp;
@@ -883,10 +888,19 @@ void EncoderVelocityAndPosition_Update()
 	//Calculate velocity and Encoder Pos
 	PositionPIDController.OutputFeedback = EncoderNowPosition;
 
-	Velocity_Output = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
-
 	// LPF
+	Velocity_Output = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
 	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*299))/300.0;
+
+	float EncoderNowVelocity = VelocityPIDController.OutputFeedback;
+
+	EncoderVelocityDiff = EncoderNowVelocity - EncoderLastVelocity;
+	EncoderLastVelocity = VelocityPIDController.OutputFeedback;
+
+	Acceration_Output = ( EncoderVelocityDiff * 1000000)  / (float) EncoderTimeDiff;
+	Acceration_Output = (Acceration_Output + (EstimatedAngularAcceration*299))/300.0;
+	EstimatedAngularAcceration = ( Acceration_Output );
+
 }
 
 void Encoder_SetHome_Position()
@@ -948,12 +962,12 @@ void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
 
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
-	TGSvar->AngularAccerationMax_Setting = (0.25*(CUSSvar->PPRxQEI))/3.141;
+	TGSvar->AngularAccerationMax_Setting = (0.3*(CUSSvar->PPRxQEI))/(3.1416*2.0);
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
 	TGSvar->Start_Theta = CUSSStruc.PPRxQEI;  /// PPRxQEI == 0 degree
 	TGSvar->Mode = 0;
 	TGSvar->Submode = 0;
-	TGSvar->Loop_Freq = 10000;
+	TGSvar->Loop_Freq = 1000;
 	TGSvar->Loop_Period = 1000000/(TGSvar->Loop_Freq);
 	TGSvar->BlendTimeLSPB = TGSvar->AngularVelocityMax_Setting/(TGSvar->AngularAccerationMax_Setting);
 	TGSvar->Theta_min_for_LSPB = TGSvar->AngularVelocityMax_Setting*TGSvar->BlendTimeLSPB;
@@ -964,9 +978,9 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 3;
-	VCvar->Ki = 0.3;
-	VCvar->Kd = 0.15;
+	VCvar->Kp = 5;
+	VCvar->Ki = 12;
+	VCvar->Kd = 0;
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
@@ -974,9 +988,9 @@ void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *T
 
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
-	VCvar->Kp = 6.5;
-	VCvar->Ki = 0.5;
-	VCvar->Kd = 0.0000005;
+	VCvar->Kp = 0.06;
+	VCvar->Ki = 1;
+	VCvar->Kd = 0.01;
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
