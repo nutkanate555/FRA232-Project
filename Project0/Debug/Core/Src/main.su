@@ -20,7 +20,7 @@ main.c:1043:6:TrajectoryGenerationVelocityMaxSetting	16	static
 main.c:1050:6:TrajectoryGenerationPrepareDATA	8	static
 main.c:1127:6:TrajectoryGenerationCalculation	16	static
 main.c:1167:6:TrajectoryGenerationProcess	112	static
-main.c:1314:6:PIDController2in1	4	static
+main.c:1314:6:PIDController2in1	16	static
 main.c:1386:6:UARTInit	16	static
 main.c:1396:6:UARTResetStart	16	static
 main.c:1401:10:UARTGetRxHead	16	static

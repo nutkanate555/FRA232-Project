@@ -990,7 +990,7 @@ void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
 
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
-	TGSvar->AngularAccerationMax_Setting = (0.5*(CUSSvar->PPRxQEI))/(3.1416*2.0);
+	TGSvar->AngularAccerationMax_Setting = (0.4*(CUSSvar->PPRxQEI))/(3.1416*2.0);
 //	TGSvar->AngularAccerationMax_Setting = (0.5*(CUSSvar->PPRxQEI))/(3.1416*2.0);
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
 	TGSvar->Start_Theta = CUSSStruc.PPRxQEI;  /// PPRxQEI == 0 degree
@@ -1013,11 +1013,11 @@ void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *T
 //	VCvar->Kd = 0.005;
 
 	//Tin
-	VCvar->Kp = 5;
-	VCvar->Ki = 0.01;
-	VCvar->Kd = 30;
-
-	VCvar->offSet = 1800;
+	VCvar->Kp = 8;
+	VCvar->Ki = 12;
+	VCvar->Kd = 1;
+	VCvar->offSet = 0;
+//	VCvar->offSet = 1800;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
 }
@@ -1030,9 +1030,9 @@ void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructur
 //	VCvar->Kd = 0;
 
 	//Tin
-	VCvar->Kp = 0.1;
-	VCvar->Ki = 0.01;
-	VCvar->Kd = 0.1;
+	VCvar->Kp = 0.000001;
+	VCvar->Ki = 2;
+	VCvar->Kd = 0.0000005;
 
 
 	VCvar->offSet = 0;
@@ -1313,38 +1313,38 @@ void TrajectoryGenerationProcess()
 
 void PIDController2in1()
 {
-//	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
-//    PositionPIDController.NowError = PositionPIDController.OutputDesire - PositionPIDController.OutputFeedback;
-//    PositionPIDController.Integral_Value += PositionPIDController.NowError*PositionPIDController.SamplingTime;
-//    PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
-//					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
-//					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError)/PositionPIDController.SamplingTime)
-//					  +(PositionPIDController.offSet);
-//    PositionPIDController.PreviousError = PositionPIDController.NowError;
+	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
+    PositionPIDController.NowError = PositionPIDController.OutputDesire - PositionPIDController.OutputFeedback;
+    PositionPIDController.Integral_Value += PositionPIDController.NowError*PositionPIDController.SamplingTime;
+    PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
+					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
+					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError)/PositionPIDController.SamplingTime)
+					  +(PositionPIDController.offSet);
+    PositionPIDController.PreviousError = PositionPIDController.NowError;
 
-//    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
-////    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
-//    VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
-//    VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
-//    VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
-//					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
-//					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime)
-//					  +(VelocityPIDController.offSet);
-//    VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
+//    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
+    VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
+    VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
+    VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
+					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
+					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime)
+					  +(VelocityPIDController.offSet);
+    VelocityPIDController.PreviousError = VelocityPIDController.NowError;
 
 	// Error term
-	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
-	PositionPIDController.NowError = PositionPIDController.OutputDesire - PositionPIDController.OutputFeedback;
-
-	// Update integral Value
-	PositionPIDController.Integral_Value += PositionPIDController.NowError;
-
-
-	PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
-					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
-					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError))
-					  +( TrjStruc.Alpha * PositionPIDController.offSet);
-	PositionPIDController.PreviousError = PositionPIDController.NowError;
+//	PositionPIDController.OutputDesire = TrjStruc.AngularDisplacementDesire;
+//	PositionPIDController.NowError = PositionPIDController.OutputDesire - PositionPIDController.OutputFeedback;
+//
+//	// Update integral Value
+//	PositionPIDController.Integral_Value += PositionPIDController.NowError;
+//
+//
+//	PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
+//					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
+//					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError))
+//					  +( TrjStruc.Alpha * PositionPIDController.offSet);
+//	PositionPIDController.PreviousError = PositionPIDController.NowError;
 
 
     // Error Term
@@ -1364,19 +1364,19 @@ void PIDController2in1()
 //    VelocityPIDController.PreviousError = VelocityPIDController.NowError;
 //    VelocityPIDController.PreviousControllerOutput =  VelocityPIDController.ControllerOutput;
 
-	// Error term
-	VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
-	VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
-
-	// Update integral Value
-	VelocityPIDController.Integral_Value += VelocityPIDController.NowError;
-
-
-	VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
-					  +(VelocityPIDController.Ki * PositionPIDController.Integral_Value)
-					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError))
-					  +( TrjStruc.Alpha * VelocityPIDController.offSet);
-	VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+//	// Error term
+//	VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
+//	VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
+//
+//	// Update integral Value
+//	VelocityPIDController.Integral_Value += VelocityPIDController.NowError;
+//
+//
+//	VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
+//					  +(VelocityPIDController.Ki * PositionPIDController.Integral_Value)
+//					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError))
+//					  +( TrjStruc.Alpha * VelocityPIDController.offSet);
+//	VelocityPIDController.PreviousError = VelocityPIDController.NowError;
 
 }
 
@@ -1609,7 +1609,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
 					case 4: //Set Angular Velocity ##Complete##
 						if (Munmunbot_State == STATE_Idle)
 						{
-							CUSSStruc.RPMp = (Data_HAck*10.0)/255.0;
+							CUSSStruc.RPMp = 0.925*(Data_HAck*10.0)/255.0;
 							TrajectoryGenerationVelocityMaxSetting(&TrjStruc , &CUSSStruc);
 						}
 						ACK1Return(uart);
