@@ -478,7 +478,7 @@ int main(void)
 	  				GripperState = 1;
 	  				Timestamp_Gripper = micros();
 	  			}
-	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState != 0))
+	  			else if ((micros() - Timestamp_Gripper >= 5000000) && (GripperState != 0))
 	  			{
 	  				GripperState = 0;
 	  				Munmunbot_State = STATE_PrepareDATA;
@@ -524,8 +524,9 @@ int main(void)
 	  				}
 	  				else if (GripperStatus[0] == 0x78)
 	  				{
-		  				GripperState = 0;
-		  				Munmunbot_State = STATE_PrepareDATA;
+	  					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
 	  				}
 	  			}
 
