@@ -182,6 +182,7 @@ typedef struct _PIDStructure
 	float Integral_Value;
 	float NowError;
 	float PreviousError;
+	float PreviousPreviousError;
 	double SamplingTime;
 } PIDStructure;
 
@@ -1311,15 +1312,30 @@ void PIDController2in1()
 					  +(PositionPIDController.offSet);
     PositionPIDController.PreviousError = PositionPIDController.NowError;
 
+//    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
+////    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
+//    VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
+//    VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
+//    VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
+//					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
+//					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime)
+//					  +(VelocityPIDController.offSet);
+//    VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+
+    // Error Term
     VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
-//    VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput;
     VelocityPIDController.NowError = VelocityPIDController.OutputDesire - VelocityPIDController.OutputFeedback;
-    VelocityPIDController.Integral_Value += VelocityPIDController.NowError*VelocityPIDController.SamplingTime;
-    VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
-					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
-					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime)
-					  +(VelocityPIDController.offSet);
+
+    // Calculate Output of the Controller
+    VelocityPIDController.ControllerOutput = VelocityPIDController.PreviousControllerOutput +
+    		(( VelocityPIDController.Kp + VelocityPIDController.Ki + VelocityPIDController.Kd ) * VelocityPIDController.NowError ) -
+			(( VelocityPIDController.Kp + ( 2.0 * VelocityPIDController.Kd )) * VelocityPIDController.PreviousError ) +
+			( VelocityPIDController.Kd *  VelocityPIDController.PreviousPreviousError );
+
+    // Updating Process
+    VelocityPIDController.PreviousPreviousError = VelocityPIDController.PreviousError;
     VelocityPIDController.PreviousError = VelocityPIDController.NowError;
+    VelocityPIDController.PreviousControllerOutput =  VelocityPIDController.ControllerOutput;
 
 }
 
@@ -1693,6 +1709,9 @@ void PID_Reset()
 	PositionPIDController.NowError = 0;
 	PositionPIDController.OutputDesire = htim1.Instance->CNT;
 	PositionPIDController.OutputFeedback = htim1.Instance->CNT;
+	PositionPIDController.PreviousPreviousError = 0;
+	PositionPIDController.PreviousControllerOutput = 0;
+
 
 	VelocityPIDController.PreviousError = 0;
 	VelocityPIDController.Integral_Value = 0;
@@ -1700,6 +1719,8 @@ void PID_Reset()
 	VelocityPIDController.NowError = 0;
 	VelocityPIDController.OutputDesire = 0;
 	VelocityPIDController.OutputFeedback = 0;
+	VelocityPIDController.PreviousPreviousError = 0;
+	VelocityPIDController.PreviousControllerOutput = 0;
 }
 
 void LAMP_ON(uint8_t lampnumber)
