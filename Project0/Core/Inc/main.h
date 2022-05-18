@@ -71,10 +71,10 @@ void Error_Handler(void);
 #define LD2_GPIO_Port GPIOA
 #define PWM_Generation_Pin GPIO_PIN_6
 #define PWM_Generation_GPIO_Port GPIOA
-#define Relay_ch_2_Pin GPIO_PIN_2
-#define Relay_ch_2_GPIO_Port GPIOB
-#define Relay_ch_3_Pin GPIO_PIN_12
-#define Relay_ch_3_GPIO_Port GPIOB
+#define Lamp1_Pin GPIO_PIN_1
+#define Lamp1_GPIO_Port GPIOB
+#define Lamp2_Pin GPIO_PIN_2
+#define Lamp2_GPIO_Port GPIOB
 #define Emergency_Switch_Signal_Pin GPIO_PIN_13
 #define Emergency_Switch_Signal_GPIO_Port GPIOB
 #define Index_Signal_Pin GPIO_PIN_15
@@ -89,8 +89,8 @@ void Error_Handler(void);
 #define Motor_Encoder_A_GPIO_Port GPIOA
 #define Motor_Encoder_B_Pin GPIO_PIN_9
 #define Motor_Encoder_B_GPIO_Port GPIOA
-#define Relay_ch_4_Pin GPIO_PIN_11
-#define Relay_ch_4_GPIO_Port GPIOA
+#define Lamp3_Pin GPIO_PIN_11
+#define Lamp3_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14

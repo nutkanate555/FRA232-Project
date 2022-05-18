@@ -176,6 +176,7 @@ typedef struct _PIDStructure
 	float Kd;
 	float offSet;
 	float ControllerOutput;
+	float PreviousControllerOutput;
 	float OutputDesire;
 	float OutputFeedback;
 	float Integral_Value;
@@ -219,7 +220,7 @@ PIDStructure VelocityPIDController  = {0};
 TrajectoryGenerationStructure TrjStruc = {0};
 ConverterUnitSystemStructure CUSSStruc = {0};
 
-
+uint8_t PIDTunerMode =  0;
 float EstimatedAngularAcceration = 0;
 
 /* USER CODE END PV */
@@ -355,30 +356,37 @@ int main(void)
 	  switch (Munmunbot_State)
 	  {
 	  	  case STATE_Disconnected:
-	  		  LAMP_ON(2);
+	  		  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 0)
+	  		  {
+	  			  LAMP_ON(0);
+	  		  }
+	  		  else
+	  		  {
+	  			  LAMP_ON(4);
+	  		  }
 	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  	  case STATE_Idle:
-	  		  LAMP_ON(2);
+	  		  LAMP_ON(1);
 	  		  Emergency_switch_trigger();
 		  	  break;
 
 	  	  case STATE_PrepareDATA:
-	  		  LAMP_ON(3);
+	  		  LAMP_ON(2);
 	  		  TrajectoryGenerationPrepareDATA();
 	  		  Emergency_switch_trigger();
 		  	  break;
 
 	  	  case STATE_Calculation:
-	  		  LAMP_ON(3);
+	  		  LAMP_ON(2);
 	  		  TrajectoryGenerationCalculation();
 	  		  Munmunbot_State = STATE_Link_Moving;
 	  		  Emergency_switch_trigger();
 	  		  break;
 
 	   	  case STATE_Link_Moving:
-	   		  LAMP_ON(3);
+	   		  LAMP_ON(2);
 	   		  if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
 	   		  {
 	   			  Controlling_the_LINK();
@@ -386,55 +394,62 @@ int main(void)
 	   			  ///////////////////////////////////////////////////////////////////
 //	   			  PositionPIDController.OutputFeedback = TrjStruc.AngularDisplacementDesire;
 	   			  ///////////////////////////////////////////////////////////////////
-
-	   			  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
-	   					  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
-						  (Moving_Link_Task_Flag == 1))
+	   			  if (PIDTunerMode == 0)
 	   			  {
-	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
-	   				  {
-	   					Munmunbot_State = STATE_Idle;
-	   					MovingLinkMode = LMM_Not_Set;
-	   					TrjStruc.Start_Theta =  PositionPIDController.OutputFeedback;
-	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-	   					ACK2Return(&UART2);
-	   				  }
+					  if ((PositionPIDController.OutputFeedback <= TrjStruc.Desire_Theta + AcceptableError) &&
+							  (PositionPIDController.OutputFeedback >= TrjStruc.Desire_Theta - AcceptableError) &&
+							  (Moving_Link_Task_Flag == 1))
+					  {
+						  if(MovingLinkMode == LMM_Set_Pos_Directly)
+						  {
+							Munmunbot_State = STATE_Idle;
+							MovingLinkMode = LMM_Not_Set;
+							TrjStruc.Start_Theta =  PositionPIDController.OutputFeedback;
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+							ACK2Return(&UART2);
+						  }
 
-	   				  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
-	   				  {
-	   					Munmunbot_State = STATE_End_Effector_Working;
-	   					GripperState = 0;
-	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-	   				  }
-	   				 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-	   				 VelocityPIDController.OutputFeedback = 0;
-	   				 Moving_Link_Task_Flag = 0;
-	   				 PID_Reset();
+						  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
+						  {
+							Munmunbot_State = STATE_End_Effector_Working;
+							GripperState = 0;
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+						  }
+						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+						 TrjStruc.AngularVelocityDesire = 0;
+						 VelocityPIDController.OutputFeedback = 0;
+						 EstimatedAngularAcceration = 0;
+						 Moving_Link_Task_Flag = 0;
+						 PID_Reset();
+					  }
 	   			  }
+	   			  else
+	   			  {
+					  if (Moving_Link_Task_Flag == 1)
+					  {
+						  if(MovingLinkMode == LMM_Set_Pos_Directly)
+						  {
+							Munmunbot_State = STATE_Idle;
+							MovingLinkMode = LMM_Not_Set;
+							TrjStruc.Start_Theta =  PositionPIDController.OutputFeedback;
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+							ACK2Return(&UART2);
+						  }
 
-//	   			  if (Moving_Link_Task_Flag == 1)
-//	   			  {
-//	   				  if(MovingLinkMode == LMM_Set_Pos_Directly)
-//	   				  {
-//	   					Munmunbot_State = STATE_Idle;
-//	   					MovingLinkMode = LMM_Not_Set;
-//	   					TrjStruc.Start_Theta =  PositionPIDController.OutputFeedback;
-//	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//	   					ACK2Return(&UART2);
-//	   				  }
-//
-//	   				  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
-//	   				  {
-//	   					Munmunbot_State = STATE_End_Effector_Working;
-//	   					GripperState = 0;
-//	   					__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//	   				  }
-//	   				 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-//	   				 VelocityPIDController.OutputFeedback = 0;
-//	   				 Moving_Link_Task_Flag = 0;
-//	   				 PID_Reset();
-//	   			  }
-
+						  else if ((MovingLinkMode == LMM_Set_Goal_1_Station) || (MovingLinkMode == LMM_Set_Goal_n_Station))
+						  {
+							Munmunbot_State = STATE_End_Effector_Working;
+							GripperState = 0;
+							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+						  }
+						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+						 TrjStruc.AngularVelocityDesire = 0;
+						 VelocityPIDController.OutputFeedback = 0;
+						 EstimatedAngularAcceration = 0;
+						 Moving_Link_Task_Flag = 0;
+						 PID_Reset();
+					  }
+	   			  }
 	   		  }
 	  		  Emergency_switch_trigger();
 	  		  break;
@@ -467,7 +482,7 @@ int main(void)
 	  		  break;
 
 	  	  case STATE_SetHome:
-	  		  LAMP_ON(3);
+	  		  LAMP_ON(2);
 	  		  SETHOME_StateMachine_Function();
 	  		  Emergency_switch_trigger();
 	  		  break;
@@ -793,13 +808,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, Relay_ch_2_Pin|Relay_ch_3_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, Lamp1_Pin|Lamp2_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Motor_DIR_GPIO_Port, Motor_DIR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Relay_ch_4_GPIO_Port, Relay_ch_4_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(Lamp3_GPIO_Port, Lamp3_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -807,15 +822,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD2_Pin Relay_ch_4_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|Relay_ch_4_Pin;
+  /*Configure GPIO pins : LD2_Pin Lamp3_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|Lamp3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Relay_ch_2_Pin Relay_ch_3_Pin */
-  GPIO_InitStruct.Pin = Relay_ch_2_Pin|Relay_ch_3_Pin;
+  /*Configure GPIO pins : Lamp1_Pin Lamp2_Pin */
+  GPIO_InitStruct.Pin = Lamp1_Pin|Lamp2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -891,6 +906,7 @@ void EncoderVelocityAndPosition_Update()
 	// LPF
 	Velocity_Output = (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;  /// Pulse per second
 	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*299))/300.0;
+//	VelocityPIDController.OutputFeedback = (Velocity_Output + (VelocityPIDController.OutputFeedback*149))/150.0;
 
 	float EncoderNowVelocity = VelocityPIDController.OutputFeedback;
 
@@ -899,6 +915,7 @@ void EncoderVelocityAndPosition_Update()
 
 	Acceration_Output = ( EncoderVelocityDiff * 1000000)  / (float) EncoderTimeDiff;
 	Acceration_Output = (Acceration_Output + (EstimatedAngularAcceration*299))/300.0;
+//	Acceration_Output = (Acceration_Output + (EstimatedAngularAcceration*149))/150.0;
 	EstimatedAngularAcceration = ( Acceration_Output );
 
 }
@@ -963,6 +980,7 @@ void ConverterUnitSystemStructureInit(ConverterUnitSystemStructure *CUSSvar)
 void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , ConverterUnitSystemStructure *CUSSvar)
 {
 	TGSvar->AngularAccerationMax_Setting = (0.3*(CUSSvar->PPRxQEI))/(3.1416*2.0);
+//	TGSvar->AngularAccerationMax_Setting = (0.5*(CUSSvar->PPRxQEI))/(3.1416*2.0);
 	TGSvar->AngularVelocityMax_Setting = ((CUSSvar->PPRxQEI)*10)/(60.0);  //pps
 	TGSvar->Start_Theta = CUSSStruc.PPRxQEI;  /// PPRxQEI == 0 degree
 	TGSvar->Mode = 0;
@@ -978,9 +996,16 @@ void TrajectoryGenerationStructureInit(TrajectoryGenerationStructure *TGSvar , C
 
 void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
+	//Onnalin
+//	VCvar->Kp = 3;
+//	VCvar->Ki = 20;
+//	VCvar->Kd = 0.005;
+
+	//Tin
 	VCvar->Kp = 5;
 	VCvar->Ki = 12;
 	VCvar->Kd = 0;
+
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
@@ -988,9 +1013,17 @@ void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *T
 
 void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *TGSvar)
 {
+	//Onnalin
+//	VCvar->Kp = 0.5;
+//	VCvar->Ki = 4;
+//	VCvar->Kd = 0;
+
+	//Tin
 	VCvar->Kp = 0.06;
-	VCvar->Ki = 1;
+	VCvar->Ki = 1.2;
 	VCvar->Kd = 0.01;
+
+
 	VCvar->offSet = 0;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
@@ -1149,6 +1182,8 @@ void TrajectoryGenerationProcess()
 						  + (TrjStruc.AngularAcceration*TrjStruc.BlendTimeTriangular*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_1;
 
+//				  Moving_Link_Task_Flag = 1;
+
 				  if ( TrjStruc.Subsubmode == 0 )
 				  {
 					  TrjStruc.AngularVelocityDesire = ( -1.0*TrjStruc.AngularAcceration*TrjStruc.Equation_Realtime_Sec ) +
@@ -1219,6 +1254,8 @@ void TrajectoryGenerationProcess()
 						  ((TrjStruc.AngularAcceration*-0.5)*(TrjStruc.Equation_Realtime_Sec*TrjStruc.Equation_Realtime_Sec))
 						  + (TrjStruc.AngularVelocity*(TrjStruc.Equation_Realtime_Sec))
 						  + TrjStruc.Theta_Stamp_2;
+
+//				  Moving_Link_Task_Flag = 1;
 
 
 
@@ -1667,22 +1704,35 @@ void PID_Reset()
 
 void LAMP_ON(uint8_t lampnumber)
 {
-	if (lampnumber == 1)
+	if (lampnumber == 0)
 	{
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
+	}
+
+	else if (lampnumber == 1)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
 	}
 	else if (lampnumber == 2)
 	{
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
 	}
 	else if (lampnumber == 3)
 	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+	}
+	else if (lampnumber == 4)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
 	}
 }
