@@ -213,6 +213,7 @@ uint8_t sethomeTrigger = 0;
 
 uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
+uint8_t GripperStatus[1] = {0};
 uint64_t Timestamp_Gripper = 0;
 
 uint8_t AcceptableError = 3;
@@ -465,7 +466,6 @@ int main(void)
 	  		  break;
 
 	  	  case STATE_End_Effector_Working:
-	  		  LAMP_ON(3);
 	  		  ///I2C implement
 	  		  if(GripperEnable == 1)
 	  		  {
@@ -478,11 +478,58 @@ int main(void)
 	  				GripperState = 1;
 	  				Timestamp_Gripper = micros();
 	  			}
-	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState == 1))
+	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState != 0))
 	  			{
 	  				GripperState = 0;
 	  				Munmunbot_State = STATE_PrepareDATA;
 	  			}
+
+	  			if (GripperState != 0)
+	  			{
+	  				if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 1))
+	  				{
+	  					{
+							uint8_t temp[1] = {0x23};
+							HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+						}
+	  					GripperState = 2;
+	  				}
+
+	  				else if ((hi2c1.State == HAL_I2C_STATE_READY) && ( GripperState == 2 ))
+	  				{
+	  					{
+//							uint8_t temp[1] = {0x23};
+//							HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+							HAL_I2C_Master_Receive_IT(&hi2c1, ((0x23 << 1) | 0b1), GripperStatus, 1);
+						}
+	  					GripperState = 1;
+	  				}
+	  				if (GripperStatus[0] == 0x12 )
+	  				{
+	  					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+	  				}
+	  				else if (GripperStatus[0] == 0x34)
+	  				{
+	  					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+	  					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+	  					HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+	  				}
+	  				else if (GripperStatus[0] == 0x56)
+	  				{
+	  					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+	  				}
+	  				else if (GripperStatus[0] == 0x78)
+	  				{
+		  				GripperState = 0;
+		  				Munmunbot_State = STATE_PrepareDATA;
+	  				}
+	  			}
+
+
 	  		  }
 	  		  else if(GripperEnable == 0)
 			  {
