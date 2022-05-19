@@ -1858,10 +1858,10 @@ int main(void)
  80013b8:	40020400 	.word	0x40020400
  80013bc:	200001e9 	.word	0x200001e9
  80013c0:	20000314 	.word	0x20000314
- 80013c4:	20000014 	.word	0x20000014
+ 80013c4:	20000015 	.word	0x20000015
  80013c8:	200001e8 	.word	0x200001e8
  80013cc:	200001de 	.word	0x200001de
- 80013d0:	200001eb 	.word	0x200001eb
+ 80013d0:	200001ea 	.word	0x200001ea
  80013d4:	20000318 	.word	0x20000318
 
 	  	  case STATE_End_Effector_Working:
@@ -1906,7 +1906,7 @@ int main(void)
  8001416:	e9c1 2300 	strd	r2, r3, [r1]
  800141a:	e019      	b.n	8001450 <main+0x3a8>
 	  			}
-	  			else if ((micros() - Timestamp_Gripper >= 5000000) && (GripperState != 0))
+	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState != 0))
  800141c:	f000 fcea 	bl	8001df4 <micros>
  8001420:	4b68      	ldr	r3, [pc, #416]	; (80015c4 <main+0x51c>)
  8001422:	e9d3 2300 	ldrd	r2, r3, [r3]
@@ -2158,11 +2158,11 @@ int main(void)
  80015aa:	f001 fd95 	bl	80030d8 <UARTTxDumpBuffer>
   {
  80015ae:	e5c2      	b.n	8001136 <main+0x8e>
- 80015b0:	004c4b3f 	.word	0x004c4b3f
+ 80015b0:	004dd1df 	.word	0x004dd1df
  80015b4:	00000000 	.word	0x00000000
- 80015b8:	200001ea 	.word	0x200001ea
+ 80015b8:	20000014 	.word	0x20000014
  80015bc:	200004b8 	.word	0x200004b8
- 80015c0:	200001eb 	.word	0x200001eb
+ 80015c0:	200001ea 	.word	0x200001ea
  80015c4:	200001f0 	.word	0x200001f0
  80015c8:	200000d9 	.word	0x200000d9
  80015cc:	200001ec 	.word	0x200001ec
@@ -7000,7 +7000,7 @@ void Munmunbot_Protocol(int16_t dataIn,UARTStucrture *uart)
  8003ad0:	404e0000 	.word	0x404e0000
  8003ad4:	40240000 	.word	0x40240000
  8003ad8:	200000d9 	.word	0x200000d9
- 8003adc:	200001ea 	.word	0x200001ea
+ 8003adc:	20000014 	.word	0x20000014
  8003ae0:	200000da 	.word	0x200000da
  8003ae4:	20000444 	.word	0x20000444
  8003ae8:	20000340 	.word	0x20000340

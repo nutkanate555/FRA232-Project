@@ -211,7 +211,7 @@ uint8_t Moving_Link_Task_Flag = 0;
 
 uint8_t sethomeTrigger = 0;
 
-uint8_t GripperEnable = 0;
+uint8_t GripperEnable = 1;
 uint8_t GripperState = 0;
 uint8_t GripperStatus[1] = {0};
 uint64_t Timestamp_Gripper = 0;
@@ -478,7 +478,7 @@ int main(void)
 	  				GripperState = 1;
 	  				Timestamp_Gripper = micros();
 	  			}
-	  			else if ((micros() - Timestamp_Gripper >= 5000000) && (GripperState != 0))
+	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState != 0))
 	  			{
 	  				GripperState = 0;
 	  				Munmunbot_State = STATE_PrepareDATA;

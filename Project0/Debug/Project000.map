@@ -3999,10 +3999,13 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .data.StationPos
                 0x0000000020000000       0x14 Core/Src/main.o
                 0x0000000020000000                StationPos
- .data.AcceptableError
+ .data.GripperEnable
                 0x0000000020000014        0x1 Core/Src/main.o
-                0x0000000020000014                AcceptableError
- *fill*         0x0000000020000015        0x3 
+                0x0000000020000014                GripperEnable
+ .data.AcceptableError
+                0x0000000020000015        0x1 Core/Src/main.o
+                0x0000000020000015                AcceptableError
+ *fill*         0x0000000020000016        0x2 
  .data.SystemCoreClock
                 0x0000000020000018        0x4 Core/Src/system_stm32f4xx.o
                 0x0000000020000018                SystemCoreClock
@@ -4087,12 +4090,10 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .bss.sethomeTrigger
                 0x00000000200001e9        0x1 Core/Src/main.o
                 0x00000000200001e9                sethomeTrigger
- .bss.GripperEnable
-                0x00000000200001ea        0x1 Core/Src/main.o
-                0x00000000200001ea                GripperEnable
  .bss.GripperState
-                0x00000000200001eb        0x1 Core/Src/main.o
-                0x00000000200001eb                GripperState
+                0x00000000200001ea        0x1 Core/Src/main.o
+                0x00000000200001ea                GripperState
+ *fill*         0x00000000200001eb        0x1 
  .bss.GripperStatus
                 0x00000000200001ec        0x1 Core/Src/main.o
                 0x00000000200001ec                GripperStatus
