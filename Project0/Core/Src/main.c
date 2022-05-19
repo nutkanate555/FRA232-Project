@@ -211,7 +211,7 @@ uint8_t Moving_Link_Task_Flag = 0;
 
 uint8_t sethomeTrigger = 0;
 
-uint8_t GripperEnable = 1;
+uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
 uint8_t GripperStatus[1] = {0};
 uint64_t Timestamp_Gripper = 0;
@@ -475,7 +475,8 @@ int main(void)
 	  		  ///I2C implement
 	  		  if(GripperEnable == 1)
 	  		  {
-	  			if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 0))
+//	  			if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 0))
+	  			if (GripperState == 0)
 	  			{
 	  				{
 	  					uint8_t temp[1] = {0x45};
@@ -484,13 +485,8 @@ int main(void)
 	  				GripperState = 1;
 	  				Timestamp_Gripper = micros();
 	  			}
-	  			else if ((micros() - Timestamp_Gripper >= 5100000) && (GripperState != 0))
-	  			{
-	  				GripperState = 0;
-	  				Munmunbot_State = STATE_PrepareDATA;
-	  			}
 
-	  			if (GripperState != 0)
+	  			else if (GripperState != 0)
 	  			{
 	  				if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 1))
 	  				{
@@ -534,6 +530,12 @@ int main(void)
 						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 						HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
 	  				}
+
+	  				if (micros() - Timestamp_Gripper >= 5100000)
+					{
+						GripperState = 0;
+						Munmunbot_State = STATE_PrepareDATA;
+					}
 	  			}
 
 
@@ -1068,10 +1070,10 @@ void VelocityControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructure *T
 //	VCvar->Kd = 0.005;
 
 	//Tin
-	VCvar->Kp = 8;
-	VCvar->Ki = 12;
-	VCvar->Kd = 1;
-	VCvar->offSet = 0;
+	VCvar->Kp = 5.3;
+	VCvar->Ki = 15;
+	VCvar->Kd = 0.06;
+	VCvar->offSet = 1500;
 //	VCvar->offSet = 1800;
 	VCvar->Integral_Value = 0;
 	VCvar->SamplingTime = (TGSvar->Loop_Period)/1000000.0;
@@ -1085,9 +1087,9 @@ void DisplacementControllerInit(PIDStructure *VCvar,TrajectoryGenerationStructur
 //	VCvar->Kd = 0;
 
 	//Tin
-	VCvar->Kp = 0.000001;
-	VCvar->Ki = 2;
-	VCvar->Kd = 0.0000005;
+	VCvar->Kp = 0.5;
+	VCvar->Ki = 1.1;
+	VCvar->Kd = 0.01;
 
 
 	VCvar->offSet = 0;
@@ -1374,7 +1376,7 @@ void PIDController2in1()
     PositionPIDController.ControllerOutput = (PositionPIDController.Kp*PositionPIDController.NowError)
 					  +(PositionPIDController.Ki * PositionPIDController.Integral_Value)
 					  +(PositionPIDController.Kd * (PositionPIDController.NowError-PositionPIDController.PreviousError)/PositionPIDController.SamplingTime)
-					  +(PositionPIDController.offSet);
+					  +( TrjStruc.Alpha * PositionPIDController.offSet);
     PositionPIDController.PreviousError = PositionPIDController.NowError;
 
     VelocityPIDController.OutputDesire = PositionPIDController.ControllerOutput + TrjStruc.AngularVelocityDesire;
@@ -1384,7 +1386,7 @@ void PIDController2in1()
     VelocityPIDController.ControllerOutput = (VelocityPIDController.Kp*VelocityPIDController.NowError)
 					  +(VelocityPIDController.Ki * VelocityPIDController.Integral_Value)
 					  +(VelocityPIDController.Kd * (VelocityPIDController.NowError-VelocityPIDController.PreviousError)/VelocityPIDController.SamplingTime)
-					  +(VelocityPIDController.offSet);
+					  +( TrjStruc.Alpha * VelocityPIDController.offSet );
     VelocityPIDController.PreviousError = VelocityPIDController.NowError;
 
 	// Error term
