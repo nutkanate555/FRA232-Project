@@ -274,6 +274,7 @@ void Controlling_the_LINK();
 void SETHOME_StateMachine_Function();
 void SETHOME_TrajectoryGenerationPrepareDATA();
 
+void UpdateMunmunBotState();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -368,12 +369,14 @@ int main(void)
 	  		  {
 	  			  LAMP_ON(4);
 	  		  }
+	  		  UpdateMunmunBotState();
 	  		  sethomeTrigger = 0;
 	  		  Emergency_switch_trigger();
 	  		  break;
 
 	  	  case STATE_Idle:
 	  		  LAMP_ON(1);
+	  		  UpdateMunmunBotState();
 	  		  if ( sethomeTrigger == 1 )
 	  		  {
 	  			  Encoder_SetHome_Position();
@@ -383,6 +386,7 @@ int main(void)
 
 	  	  case STATE_PrepareDATA:
 	  		  sethomeTrigger = 0;
+	  		  UpdateMunmunBotState();
 	  		  LAMP_ON(2);
 	  		  TrajectoryGenerationPrepareDATA();
 	  		  Emergency_switch_trigger();
@@ -390,6 +394,7 @@ int main(void)
 
 	  	  case STATE_Calculation:
 	  		  LAMP_ON(2);
+	  		  UpdateMunmunBotState();
 	  		  TrajectoryGenerationCalculation();
 	  		  Munmunbot_State = STATE_Link_Moving;
 	  		  Emergency_switch_trigger();
@@ -425,10 +430,10 @@ int main(void)
 							GripperState = 0;
 							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 						  }
-						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-						 TrjStruc.AngularVelocityDesire = 0;
-						 VelocityPIDController.OutputFeedback = 0;
-						 EstimatedAngularAcceration = 0;
+//						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+//						 TrjStruc.AngularVelocityDesire = 0;
+//						 VelocityPIDController.OutputFeedback = 0;
+//						 EstimatedAngularAcceration = 0;
 						 Moving_Link_Task_Flag = 0;
 						 PID_Reset();
 					  }
@@ -453,10 +458,10 @@ int main(void)
 							GripperState = 0;
 							__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 						  }
-						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
-						 TrjStruc.AngularVelocityDesire = 0;
-						 VelocityPIDController.OutputFeedback = 0;
-						 EstimatedAngularAcceration = 0;
+//						 TrjStruc.Start_Theta = PositionPIDController.OutputFeedback;  //set new start theta
+//						 TrjStruc.AngularVelocityDesire = 0;
+//						 VelocityPIDController.OutputFeedback = 0;
+//						 EstimatedAngularAcceration = 0;
 						 Moving_Link_Task_Flag = 0;
 						 PID_Reset();
 					  }
@@ -466,6 +471,7 @@ int main(void)
 	  		  break;
 
 	  	  case STATE_End_Effector_Working:
+	  		  UpdateMunmunBotState();
 	  		  ///I2C implement
 	  		  if(GripperEnable == 1)
 	  		  {
@@ -542,6 +548,7 @@ int main(void)
 	  	  case STATE_SetHome:
 	  		  sethomeTrigger = 0;
 	  		  LAMP_ON(2);
+	  		  UpdateMunmunBotState();
 	  		  SETHOME_StateMachine_Function();
 	  		  Emergency_switch_trigger();
 	  		  break;
@@ -1935,6 +1942,15 @@ void SETHOME_StateMachine_Function()
 
      }
 
+}
+
+void UpdateMunmunBotState()
+{
+	if (micros()-TrjStruc.Loop_Timestamp >=  TrjStruc.Loop_Period)
+	{
+		EncoderVelocityAndPosition_Update();
+		TrjStruc.Loop_Timestamp = micros();
+	}
 }
 
 
