@@ -188,7 +188,7 @@ typedef struct _PIDStructure
 
 
 ///Station Setting
-uint16_t StationPos[10] = {0,1,2,3,4,36,18,54,33,67};
+uint16_t StationPos[10] = {6,7,10,22,25,30,35,40,45,69};
 
 uint8_t Angularpos_InputArray[255] = {0};
 uint16_t Angularpos_InputNumber = 0;
