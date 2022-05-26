@@ -188,7 +188,7 @@ typedef struct _PIDStructure
 
 
 ///Station Setting
-uint16_t StationPos[10] = {6,7,10,22,25,30,35,40,45,69};
+uint16_t StationPos[10] = {0,1,2,3,4,36,18,54,33,67};
 
 uint8_t Angularpos_InputArray[255] = {0};
 uint16_t Angularpos_InputNumber = 0;
@@ -211,7 +211,7 @@ uint8_t Moving_Link_Task_Flag = 0;
 
 uint8_t sethomeTrigger = 0;
 
-uint8_t GripperEnable = 0;
+uint8_t GripperEnable = 1;
 uint8_t GripperState = 0;
 uint8_t GripperStatus[1] = {0};
 uint64_t Timestamp_Gripper = 0;
