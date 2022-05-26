@@ -43,7 +43,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -54,7 +54,6 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
-#define  HI2C_XX hi2c1
 uint8_t pidSetZeroFlag = 0;
 
 
@@ -213,12 +212,12 @@ uint8_t Moving_Link_Task_Flag = 0;
 
 uint8_t sethomeTrigger = 0;
 
-uint8_t GripperEnable = 1;
+uint8_t GripperEnable = 0;
 uint8_t GripperState = 0;
 uint8_t GripperStatus[1] = {0};
 uint64_t Timestamp_Gripper = 0;
 
-uint8_t AcceptableError = 8;
+uint8_t AcceptableError = 10;
 float StabilizePosition = 0;
 float StabilizeVelocity = 0;
 
@@ -297,6 +296,8 @@ void EndEffectorWorkingState();
 void StabilizerPIDLoad();
 void LinkMovingPIDLoad();
 void VelocityPurePIDLoad();
+//void VelocityPurePIDLoadNoMass();
+
 
 void LinkMovingPID45to355Load();
 void LinkMovingPID10to45Load();
@@ -359,6 +360,8 @@ int main(void)
   StabilizerPIDLoad();
   LinkMovingPIDLoad();
   VelocityPurePIDLoad();
+
+//  VelocityPurePIDLoadNoMass();
 
   Encoder_SetHome_Position();
 
@@ -440,6 +443,16 @@ int main(void)
 	  		  UpdateMunmunBotState();
 	  		  TrajectoryGenerationCalculation();
 	  		  Munmunbot_State = STATE_Link_Moving;
+//			  if ( ( TrjStruc.Abs_Delta_Theta < ( 20*8192.0/360.0 ) ) && ( TrjStruc.Abs_Delta_Theta = (0*8192.0/360.0 ) ) )
+//			 {
+//				  Munmunbot_State = STATE_Stabilized_Link;
+//				  StabilizePosition = TrjStruc.Desire_Theta;
+//				  Moving_Link_Task_Flag = 1;
+//				  PID_Reset();
+//			 }
+
+
+
 	  		  Emergency_switch_trigger();
 	  		  break;
 
@@ -558,6 +571,7 @@ void SystemClock_Config(void)
   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -574,6 +588,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -1113,6 +1128,16 @@ void VelocityPurePIDLoad()
 	PureVelocityPIDController.Kp = 5;
 	PureVelocityPIDController.Ki = 15;
 	PureVelocityPIDController.Kd = 0.00005;
+	PureVelocityPIDController.offSet = 1500;
+	PureVelocityPIDController.SamplingTime = ( TrjStruc.Loop_Period )/1000000.0;
+}
+
+
+void VelocityPurePIDLoadNoMass()
+{
+	PureVelocityPIDController.Kp = 1.25;
+	PureVelocityPIDController.Ki = 5;
+	PureVelocityPIDController.Kd = 0.05;
 	PureVelocityPIDController.offSet = 1500;
 	PureVelocityPIDController.SamplingTime = ( TrjStruc.Loop_Period )/1000000.0;
 }
@@ -2119,7 +2144,6 @@ void EndEffectorWorkingState()
 			{
 				uint8_t temp[1] = {0x45};
 				HAL_I2C_Master_Transmit(&hi2c1, (0x23 << 1) , temp, 1, 100);
-				EndeffectorTestMode = EndeffectorTestMode + 3;
 			}
 			GripperState = 1;
 			Timestamp_Gripper = micros();
@@ -2270,5 +2294,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
