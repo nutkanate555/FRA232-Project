@@ -54,7 +54,7 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
-
+#define  HI2C_XX hi2c1
 uint8_t pidSetZeroFlag = 0;
 
 
@@ -402,7 +402,6 @@ int main(void)
 	  switch (Munmunbot_State)
 	  {
 	  	  case STATE_Disconnected:
-	  		  EndEffectorDebug();
 	  		  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 0)
 	  		  {
 	  			  LAMP_ON(0);
@@ -2103,7 +2102,8 @@ void EndEffectorDebug()
 	{
 		  {
 				uint8_t temp[1] = {0x45};
-				HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+//				HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+				HAL_I2C_Master_Transmit(&hi2c1, (0x23 << 1) , temp, 1, 100);
 		  }
 		Timestamp_EndEffectorDebug = micros();
 	}
@@ -2115,10 +2115,11 @@ void EndEffectorWorkingState()
 	  {
 		if (GripperState == 0)
 		{
+			LAMP_ON(3);
 			{
-				LAMP_ON(3);
 				uint8_t temp[1] = {0x45};
-				HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+				HAL_I2C_Master_Transmit(&hi2c1, (0x23 << 1) , temp, 1, 100);
+				EndeffectorTestMode = EndeffectorTestMode + 3;
 			}
 			GripperState = 1;
 			Timestamp_Gripper = micros();
@@ -2126,46 +2127,46 @@ void EndEffectorWorkingState()
 
 		else if (GripperState != 0)
 		{
-			if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 1))
-			{
-				{
-					uint8_t temp[1] = {0x23};
-					HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
-				}
-				GripperState = 2;
-			}
-
-			else if ((hi2c1.State == HAL_I2C_STATE_READY) && ( GripperState == 2 ))
-			{
-				{
-					HAL_I2C_Master_Receive_IT(&hi2c1, ((0x23 << 1) | 0b1), GripperStatus, 1);
-				}
-				GripperState = 1;
-			}
-			if (GripperStatus[0] == 0x12 )
-			{
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
-			}
-			else if (GripperStatus[0] == 0x34)
-			{
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
-			}
-			else if (GripperStatus[0] == 0x56)
-			{
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
-			}
-			else if (GripperStatus[0] == 0x78)
-			{
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
-			}
+//			if ((hi2c1.State == HAL_I2C_STATE_READY) && (GripperState == 1))
+//			{
+//				{
+//					uint8_t temp[1] = {0x23};
+//					HAL_I2C_Master_Transmit_IT(&hi2c1, (0x23 << 1) , temp, 1);
+//				}
+//				GripperState = 2;
+//			}
+//
+//			else if ((hi2c1.State == HAL_I2C_STATE_READY) && ( GripperState == 2 ))
+//			{
+//				{
+//					HAL_I2C_Master_Receive_IT(&hi2c1, ((0x23 << 1) | 0b1), GripperStatus, 1);
+//				}
+//				GripperState = 1;
+//			}
+//			if (GripperStatus[0] == 0x12 )
+//			{
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+//			}
+//			else if (GripperStatus[0] == 0x34)
+//			{
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+//			}
+//			else if (GripperStatus[0] == 0x56)
+//			{
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 0);
+//			}
+//			else if (GripperStatus[0] == 0x78)
+//			{
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, 1);
+//			}
 
 			if (micros() - Timestamp_Gripper >= 5100000)
 			{
